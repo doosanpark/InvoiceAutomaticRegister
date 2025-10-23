@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python manage.py shell:*)",
+      "Bash(findstr:*)",
+      "Bash(python manage.py:*)",
+      "Bash(dir:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Read(//c/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

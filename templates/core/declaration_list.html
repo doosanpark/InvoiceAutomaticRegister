@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+
+{% block title %}신고서 관리 - {{ service_user.service.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .breadcrumb a {
+        color: var(--primary-blue);
+        text-decoration: none;
+    }
+
+    .page-header {
+        margin-bottom: 32px;
+    }
+
+    .declaration-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 24px;
+    }
+
+    .declaration-card {
+        background: var(--card-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 16px;
+        padding: 32px;
+        transition: all 0.3s;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .declaration-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary-blue), #667eea);
+        transform: scaleX(0);
+        transition: transform 0.3s;
+    }
+
+    .declaration-card:hover {
+        border-color: var(--primary-blue);
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-4px);
+    }
+
+    .declaration-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .declaration-icon {
+        width: 56px;
+        height: 56px;
+        background: var(--bg-color);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        margin-bottom: 20px;
+    }
+
+    .declaration-title {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 12px;
+        color: var(--text-primary);
+    }
+
+    .declaration-type {
+        display: inline-block;
+        padding: 6px 14px;
+        background: var(--bg-color);
+        color: var(--text-secondary);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+
+    .declaration-desc {
+        font-size: 14px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        margin-bottom: 20px;
+    }
+
+    .declaration-arrow {
+        color: var(--primary-blue);
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: var(--primary-blue);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #3182ce;
+    }
+
+    .btn-secondary {
+        background: var(--bg-color);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+        background: var(--border-color);
+    }
+
+    .declaration-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .btn-small {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    {% if user.user_type == 'admin' %}
+    <a href="{% url 'service_list' %}">서비스 리스트</a>
+    <span>›</span>
+    <a href="{% url 'service_detail' service_user.service.slug %}">{{ service_user.service.name }}</a>
+    {% else %}
+    <a href="{% url 'dashboard' %}">대시보드</a>
+    {% endif %}
+    <span>›</span>
+    <span>신고서 관리</span>
+</div>
+
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1>신고서 관리</h1>
+        <p style="color: var(--text-secondary); font-size: 16px;">
+            {{ service_user.service.name }}
+            {% if service_user.user %}
+                - {{ service_user.user.customs_name }}
+            {% else %}
+                - 기본
+            {% endif %}
+        </p>
+    </div>
+    {% if user.user_type == 'admin' and service_user.is_default %}
+    <a href="{% url 'declaration_add' service_user.service.slug service_user.user.customs_code|default:'default' %}" class="btn btn-primary" style="white-space: nowrap;">
+        + 신고서 추가
+    </a>
+    {% endif %}
+</div>
+
+<div class="declaration-grid">
+    {% for declaration in declarations %}
+    <div class="declaration-card" style="position: relative;">
+        <a href="{% url 'declaration_detail' service_user.service.slug service_user.user.customs_code|default:'default' declaration.code %}" style="text-decoration: none; color: inherit; display: block;">
+            <div class="declaration-icon">📄</div>
+            <div class="declaration-title">{{ declaration.name }}</div>
+            <div class="declaration-type">{{ declaration.get_declaration_type_display }}</div>
+            <div class="declaration-desc">
+                {% if declaration.description %}
+                    {{ declaration.description|truncatewords:15 }}
+                {% else %}
+                    매핑정보 및 프롬프트 설정을 관리합니다
+                {% endif %}
+            </div>
+            <div class="declaration-arrow">
+                설정 관리 →
+            </div>
+        </a>
+        {% if user.user_type == 'admin' and service_user.is_default %}
+        <div class="declaration-actions" onclick="event.stopPropagation();">
+            <a href="{% url 'declaration_edit' service_user.service.slug service_user.user.customs_code|default:'default' declaration.code %}" class="btn btn-secondary btn-small">
+                수정
+            </a>
+            <form method="post" action="{% url 'declaration_delete' service_user.service.slug service_user.user.customs_code|default:'default' declaration.code %}" style="margin: 0;" onsubmit="return confirm('정말 삭제하시겠습니까?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary btn-small" style="background: #EF4444; color: white; border: none;">
+                    삭제
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="card" style="grid-column: 1 / -1;">
+        <p style="text-align: center; color: var(--text-secondary); padding: 40px;">
+            등록된 신고서가 없습니다.
+        </p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

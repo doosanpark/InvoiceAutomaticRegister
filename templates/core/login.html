@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}로그인 - Invoice System{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .login-container {
+        width: 100%;
+        max-width: 440px;
+        padding: 20px;
+    }
+
+    .login-card {
+        background: white;
+        border-radius: 20px;
+        padding: 48px 40px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    .login-logo {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .login-logo h1 {
+        font-size: 36px;
+        font-weight: 800;
+        color: var(--primary-blue);
+        margin-bottom: 8px;
+    }
+
+    .login-logo p {
+        font-size: 15px;
+        color: var(--text-secondary);
+    }
+
+    .login-form .form-group {
+        margin-bottom: 20px;
+    }
+
+    .login-form .form-input {
+        padding: 16px 18px;
+        font-size: 16px;
+    }
+
+    .login-form .btn-primary {
+        width: 100%;
+        padding: 16px;
+        font-size: 16px;
+        margin-top: 12px;
+    }
+
+    .login-footer {
+        margin-top: 32px;
+        text-align: center;
+    }
+
+    .login-footer a {
+        display: inline-block;
+        padding: 10px 20px;
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 14px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+
+    .login-footer a:hover {
+        background: var(--bg-color);
+        color: var(--primary-blue);
+    }
+
+    .login-info {
+        margin-top: 32px;
+        padding: 20px;
+        background: var(--bg-color);
+        border-radius: 12px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.8;
+    }
+
+    .login-info strong {
+        color: var(--text-primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-logo">
+            <h1>Invoice System</h1>
+            <p>간편하고 안전한 인보이스 자동 인식</p>
+        </div>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-error">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <form method="post" class="login-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <input
+                    type="text"
+                    name="username"
+                    class="form-input"
+                    placeholder="아이디 (관리자: admin, 관세사: 부호 5자리)"
+                    required
+                    autofocus
+                >
+            </div>
+            <div class="form-group">
+                <input
+                    type="password"
+                    name="password"
+                    class="form-input"
+                    placeholder="비밀번호"
+                    required
+                >
+            </div>
+            <button type="submit" class="btn btn-primary">로그인</button>
+        </form>
+
+        <div class="login-footer">
+            <a href="mailto:support@erequest.com?subject=문의사항">eRequest 문의하기</a>
+        </div>
+
+        <div class="login-info">
+            <strong>로그인 정보</strong><br>
+            • 관리자: <code>admin</code> / <code>P@ssw0rd</code><br>
+            • 관세사: 관세사부호 5자리 / 최초 비밀번호 <code>init123</code><br>
+            • 최초 로그인 시 비밀번호 변경이 필요합니다
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}관세사 추가 - {{ service.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .add-customs-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .breadcrumb {
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .breadcrumb a {
+        color: var(--primary-blue);
+        text-decoration: none;
+    }
+
+    .page-header {
+        margin-bottom: 32px;
+    }
+
+    .form-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 40px;
+        box-shadow: var(--shadow-md);
+    }
+
+    .info-box {
+        background: var(--bg-color);
+        border-left: 4px solid var(--primary-blue);
+        padding: 16px;
+        margin-bottom: 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 32px;
+    }
+
+    .form-actions .btn {
+        flex: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="add-customs-container">
+    <div class="breadcrumb">
+        <a href="{% url 'service_list' %}">서비스 리스트</a>
+        <span>›</span>
+        <a href="{% url 'service_detail' service.slug %}">{{ service.name }}</a>
+        <span>›</span>
+        <span>관세사 추가</span>
+    </div>
+
+    <div class="page-header">
+        <h1>관세사 추가</h1>
+        <p style="color: var(--text-secondary); font-size: 16px;">
+            {{ service.name }} 서비스에 관세사를 추가합니다
+        </p>
+    </div>
+
+    <div class="form-card">
+        <div class="info-box">
+            <strong>안내</strong><br>
+            • 관세사부호가 이미 등록되어 있으면 해당 관세사를 이 서비스에 추가합니다<br>
+            • 신규 관세사는 기본 비밀번호 <code>init123</code>으로 생성됩니다<br>
+            • 최초 로그인 시 비밀번호 변경이 필요합니다
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label class="form-label">{{ form.customs_code.label }} *</label>
+                {{ form.customs_code }}
+                {% if form.customs_code.errors %}
+                    <div class="alert alert-error" style="margin-top: 8px;">
+                        {{ form.customs_code.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{{ form.customs_name.label }} *</label>
+                {{ form.customs_name }}
+                {% if form.customs_name.errors %}
+                    <div class="alert alert-error" style="margin-top: 8px;">
+                        {{ form.customs_name.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{{ form.password.label }}</label>
+                {{ form.password }}
+                <small style="color: var(--text-tertiary); font-size: 13px; display: block; margin-top: 4px;">
+                    {{ form.password.help_text }}
+                </small>
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'service_detail' service.slug %}" class="btn btn-secondary">취소</a>
+                <button type="submit" class="btn btn-primary">관세사 추가</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

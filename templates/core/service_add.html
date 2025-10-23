@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block title %}서비스 추가 - Invoice System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .add-service-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        margin-bottom: 32px;
+    }
+
+    .form-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 40px;
+        box-shadow: var(--shadow-md);
+    }
+
+    .form-section {
+        margin-bottom: 32px;
+    }
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 32px;
+    }
+
+    .form-actions .btn {
+        flex: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="add-service-container">
+    <div class="page-header">
+        <h1>서비스 추가</h1>
+        <p style="color: var(--text-secondary); font-size: 16px;">
+            새로운 서비스와 DB 접속 정보를 등록하세요
+        </p>
+    </div>
+
+    <div class="form-card">
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- 기본 정보 섹션 -->
+            <div class="form-section">
+                <div class="section-title">기본 정보</div>
+
+                <div class="form-group">
+                    <label class="form-label">{{ form.name.label }}</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                        <div class="alert alert-error" style="margin-top: 8px;">
+                            {{ form.name.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">{{ form.description.label }}</label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                        <div class="alert alert-error" style="margin-top: 8px;">
+                            {{ form.description.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- DB 접속 정보 섹션 -->
+            <div class="form-section">
+                <div class="section-title">DB 접속 정보 (선택사항)</div>
+
+                <div class="form-group">
+                    <label class="form-label">{{ form.db_host.label }}</label>
+                    {{ form.db_host }}
+                    {% if form.db_host.errors %}
+                        <div class="alert alert-error" style="margin-top: 8px;">
+                            {{ form.db_host.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">{{ form.db_port.label }}</label>
+                    {{ form.db_port }}
+                    {% if form.db_port.errors %}
+                        <div class="alert alert-error" style="margin-top: 8px;">
+                            {{ form.db_port.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">{{ form.db_name.label }}</label>
+                    {{ form.db_name }}
+                    {% if form.db_name.errors %}
+                        <div class="alert alert-error" style="margin-top: 8px;">
+                            {{ form.db_name.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">{{ form.db_user.label }}</label>
+                    {{ form.db_user }}
+                    {% if form.db_user.errors %}
+                        <div class="alert alert-error" style="margin-top: 8px;">
+                            {{ form.db_user.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">{{ form.db_password.label }}</label>
+                    {{ form.db_password }}
+                    {% if form.db_password.errors %}
+                        <div class="alert alert-error" style="margin-top: 8px;">
+                            {{ form.db_password.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'service_list' %}" class="btn btn-secondary">취소</a>
+                <button type="submit" class="btn btn-primary">서비스 추가</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

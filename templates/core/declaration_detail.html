@@ -1,0 +1,979 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ declaration.name }} 설정 - Invoice System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--text-secondary);
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb a {
+        color: var(--primary-blue);
+        text-decoration: none;
+    }
+
+    .page-header {
+        margin-bottom: 32px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .mapping-section {
+        margin-bottom: 40px;
+    }
+
+    .section-title {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .section-icon {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, var(--primary-blue), #667eea);
+        color: white;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+
+    .mapping-table-container {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        overflow: visible;
+    }
+
+    .mapping-table {
+        width: auto;
+        border-collapse: collapse;
+    }
+
+    .mapping-table thead {
+        background: var(--bg-color);
+    }
+
+    .mapping-table th {
+        padding: 12px;
+        text-align: left;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        border-bottom: 2px solid var(--border-color);
+        white-space: nowrap;
+        position: sticky;
+        top: 0;
+        background: var(--bg-color);
+        z-index: 10;
+    }
+
+    .mapping-table td {
+        padding: 12px;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 13px;
+        vertical-align: top;
+    }
+
+    .mapping-table tbody tr:hover {
+        background: var(--bg-color);
+    }
+
+    .mapping-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .field-name-cell {
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+    }
+
+    .db-info-cell {
+        font-family: 'Courier New', monospace;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+
+    .field-type-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        background: var(--bg-color);
+        border-radius: 6px;
+        font-size: 11px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+
+    .type-cell {
+        white-space: nowrap;
+    }
+
+    .prompt-cell {
+        width: 400px;
+    }
+
+    .actions-cell {
+        white-space: nowrap;
+    }
+
+    .prompt-textarea {
+        width: 100%;
+        min-height: 80px;
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 13px;
+        font-family: inherit;
+        line-height: 1.5;
+        resize: vertical;
+        transition: all 0.2s;
+    }
+
+    .prompt-textarea:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(49, 130, 246, 0.1);
+    }
+
+    .prompt-textarea:disabled {
+        background: var(--bg-color);
+        color: var(--text-tertiary);
+        cursor: not-allowed;
+    }
+
+    .btn-save {
+        padding: 6px 16px;
+        background: var(--primary-blue);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 8px;
+        width: 100%;
+    }
+
+    .btn-save:hover {
+        background: var(--primary-blue-hover);
+    }
+
+    .btn-save:disabled {
+        background: var(--text-tertiary);
+        cursor: not-allowed;
+    }
+
+    .btn-save-action {
+        padding: 6px 12px;
+        background: var(--primary-blue);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+
+    .btn-save-action:hover {
+        background: var(--primary-blue-hover);
+        transform: translateY(-1px);
+    }
+
+    .actions-cell {
+        text-align: center;
+        white-space: nowrap;
+        min-width: 100px;
+    }
+
+    .add-mapping-section {
+        background: var(--card-bg);
+        border: 2px dashed var(--border-color);
+        border-radius: 12px;
+        padding: 32px;
+    }
+
+    #addMappingSection > h3,
+    #addMappingSection > p,
+    #addMappingSection > #showFormBtn {
+        text-align: center;
+    }
+
+    .btn-add-mapping {
+        padding: 12px 28px;
+        background: white;
+        color: var(--primary-blue);
+        border: 2px solid var(--primary-blue);
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-add-mapping:hover {
+        background: var(--primary-blue);
+        color: white;
+    }
+
+    .btn-edit,
+    .btn-delete {
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+        background: transparent;
+    }
+
+    .btn-edit:hover {
+        background: var(--bg-color);
+        transform: scale(1.1);
+    }
+
+    .btn-delete:hover {
+        background: #FEF2F2;
+        transform: scale(1.1);
+    }
+
+    #mappingForm {
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .lock-icon {
+        font-size: 14px;
+        color: var(--text-tertiary);
+    }
+
+    .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: var(--text-primary);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: var(--shadow-lg);
+        display: none;
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .toast.show {
+        display: block;
+    }
+
+    .declaration-info-section {
+        margin-bottom: 40px;
+    }
+
+    .info-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 24px;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .info-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
+    .info-value {
+        font-size: 15px;
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+
+    .info-value code {
+        background: var(--bg-color);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+    }
+
+    .type-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .type-badge.export {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .type-badge.import {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .type-badge.correction {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .metadata-textarea {
+        width: 100%;
+        min-height: 200px;
+        padding: 16px;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        line-height: 1.6;
+        resize: vertical;
+        transition: all 0.2s;
+        background: var(--card-bg);
+    }
+
+    .metadata-textarea:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 4px rgba(49, 130, 246, 0.1);
+    }
+
+    .metadata-textarea::placeholder {
+        color: var(--text-tertiary);
+        font-style: italic;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    {% if user.user_type == 'admin' %}
+    <a href="{% url 'service_list' %}">서비스 리스트</a>
+    <span>›</span>
+    <a href="{% url 'service_detail' service_user.service.slug %}">{{ service_user.service.name }}</a>
+    {% else %}
+    <a href="{% url 'dashboard' %}">대시보드</a>
+    {% endif %}
+    <span>›</span>
+    <a href="{% url 'declaration_list_with_user' service_user.service.slug service_user.user.customs_code|default:'default' %}">신고서 관리</a>
+    <span>›</span>
+    <span>{{ declaration.name }}</span>
+</div>
+
+<div class="page-header">
+    <div>
+        <h1>{{ declaration.name }}</h1>
+        <p style="color: var(--text-secondary); font-size: 16px;">
+            신고서 정의 및 매핑정보 설정
+        </p>
+    </div>
+</div>
+
+<!-- 신고서 정의 섹션 (기본 설정에서만 표시) -->
+{% if service_user.is_default %}
+<div class="declaration-info-section">
+    <div class="section-title">
+        <div class="section-icon">📋</div>
+        <span>신고서 정의</span>
+    </div>
+
+    <div class="info-card">
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">신고서명</div>
+                <div class="info-value">{{ declaration.name }}</div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">신고서 코드</div>
+                <div class="info-value"><code>{{ declaration.code }}</code></div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">신고서 유형</div>
+                <div class="info-value">
+                    {% if declaration.declaration_type %}
+                        <span class="type-badge {{ declaration.declaration_type }}">
+                            {{ declaration.get_declaration_type_display }}
+                        </span>
+                    {% else %}
+                        <span style="color: var(--text-tertiary);">미지정</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">서비스</div>
+                <div class="info-value">{{ declaration.service.name }}</div>
+            </div>
+
+            {% if declaration.description %}
+            <div class="info-item" style="grid-column: 1 / -1;">
+                <div class="info-label">설명</div>
+                <div class="info-value">{{ declaration.description }}</div>
+            </div>
+            {% endif %}
+
+            <div class="info-item" style="grid-column: 1 / -1; margin-top: 20px;">
+                <div class="info-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span>🤖 AI 메타데이터 (생성형 AI에 전달할 컨텍스트 정보)</span>
+                    <button class="btn-save" onclick="saveMetadata()" style="width: auto; margin-top: 0; padding: 8px 20px;">
+                        저장
+                    </button>
+                </div>
+                <textarea
+                    id="metadataInput"
+                    class="metadata-textarea"
+                    placeholder="예: 이 신고서는 수출신고서입니다. 신고인 정보, 물품정보, 거래조건 등이 포함됩니다. 특별히 주의해야 할 사항..."
+                >{{ declaration.description|default:"" }}</textarea>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="mapping-section">
+    <div class="section-title">
+        <div class="section-icon">⚙️</div>
+        <span>매핑 정보 및 프롬프트</span>
+    </div>
+
+    {% if mapping_data %}
+    <div class="mapping-table-container">
+        <table class="mapping-table">
+            <thead>
+                <tr>
+                    <th>유니패스 항목명</th>
+                    <th>DB 테이블.필드</th>
+                    <th>타입</th>
+                    {% if service_user.is_default and user.user_type == 'admin' %}
+                    <th>📝 기본 입력항목</th>
+                    {% endif %}
+                    <th>➕ 추가 입력항목</th>
+                    <th style="text-align: center;">작업</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in mapping_data %}
+                <tr id="mapping-{{ item.mapping.id }}">
+                    <td class="field-name-cell">{{ item.mapping.unipass_field_name }}</td>
+                    <td class="db-info-cell">{{ item.mapping.db_table_name }}.{{ item.mapping.db_field_name }}</td>
+                    <td class="type-cell">
+                        <span class="field-type-badge">
+                            {{ item.mapping.get_field_type_display }}
+                            {% if item.mapping.field_length %}({{ item.mapping.field_length }}){% endif %}
+                        </span>
+                    </td>
+
+                    <!-- 기본 입력항목 (기본 프로필이고 관리자인 경우만 표시) -->
+                    {% if service_user.is_default and user.user_type == 'admin' %}
+                    <td class="prompt-cell">
+                        <textarea
+                            class="prompt-textarea"
+                            id="basic-prompt-{{ item.mapping.id }}"
+                            placeholder="기본 프롬프트 입력..."
+                        >{{ item.basic_prompt.prompt_text|default:"" }}</textarea>
+                    </td>
+                    {% endif %}
+
+                    <!-- 추가 입력항목 -->
+                    <td class="prompt-cell">
+                        <textarea
+                            class="prompt-textarea"
+                            id="additional-prompt-{{ item.mapping.id }}"
+                            placeholder="추가 프롬프트 입력..."
+                            {% if not can_edit_additional %}disabled{% endif %}
+                        >{{ item.additional_prompt.prompt_text|default:"" }}</textarea>
+                        {% if not can_edit_additional %}
+                        <div style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">🔒 권한 없음</div>
+                        {% endif %}
+                    </td>
+
+                    <td class="actions-cell">
+                        <div style="display: flex; flex-direction: column; gap: 8px; align-items: stretch;">
+                            {% if service_user.is_default and user.user_type == 'admin' %}
+                            <button class="btn-save-action" onclick="saveAllPrompts({{ item.mapping.id }}, {{ service_user.id }})" title="프롬프트 저장">
+                                💾 저장
+                            </button>
+                            {% elif can_edit_additional %}
+                            <button class="btn-save-action" onclick="savePrompt({{ item.mapping.id }}, 'additional', {{ service_user.id }})" title="프롬프트 저장">
+                                💾 저장
+                            </button>
+                            {% endif %}
+                            <div style="display: flex; gap: 4px; justify-content: center;">
+                                <button class="btn-edit" onclick="editMapping({{ item.mapping.id }}, '{{ item.mapping.unipass_field_name }}', '{{ item.mapping.db_table_name }}', '{{ item.mapping.db_field_name }}', '{{ item.mapping.field_type }}', {{ item.mapping.field_length|default:'null' }})" title="매핑 수정">
+                                    ✏️
+                                </button>
+                                <button class="btn-delete" onclick="deleteMapping({{ item.mapping.id }})" title="매핑 삭제">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card">
+        <p style="text-align: center; color: var(--text-secondary); padding: 40px;">
+            등록된 매핑 정보가 없습니다.
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="add-mapping-section" id="addMappingSection">
+    <h3 style="margin-bottom: 12px;">새 매핑 추가</h3>
+    <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 14px;">
+        유니패스 항목과 DB 필드를 매핑할 수 있습니다
+    </p>
+    <button class="btn-add-mapping" id="showFormBtn" onclick="toggleMappingForm()">
+        + 매핑 추가하기
+    </button>
+
+    <!-- 매핑 추가/수정 폼 (숨겨진 상태) -->
+    <div id="mappingForm" style="display: none; margin-top: 24px;">
+        <div style="background: white; padding: 24px; border-radius: 12px; border: 2px solid var(--primary-blue);">
+            <input type="hidden" id="mappingId" value="" />
+
+            <div class="form-group">
+                <label class="form-label">유니패스 항목명 *</label>
+                <input type="text" id="unipassField" class="form-input" placeholder="예: 신고번호" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">DB 테이블명 *</label>
+                <input type="text" id="dbTable" class="form-input" placeholder="예: ImportDeclaration" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">DB 필드명 *</label>
+                <input type="text" id="dbField" class="form-input" placeholder="예: Rpt_num" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">필드 타입 *</label>
+                <select id="fieldType" class="form-input">
+                    <option value="string">문자열</option>
+                    <option value="number">숫자</option>
+                    <option value="date">날짜</option>
+                    <option value="datetime">날짜시간</option>
+                    <option value="boolean">참/거짓</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">필드 길이 (선택)</label>
+                <input type="number" id="fieldLength" class="form-input" placeholder="예: 100" min="1" />
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-top: 24px;">
+                <button class="btn btn-secondary" onclick="toggleMappingForm()" style="flex: 1;">
+                    취소
+                </button>
+                <button class="btn btn-primary" onclick="submitMapping()" style="flex: 1;" id="submitBtn">
+                    추가
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+function savePrompt(mappingId, promptType, serviceUserId) {
+    const textarea = document.getElementById(`${promptType}-prompt-${mappingId}`);
+    const promptText = textarea.value;
+
+    fetch(`/api/prompt/${mappingId}/update/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: new URLSearchParams({
+            'prompt_type': promptType,
+            'prompt_text': promptText,
+            'service_user_id': serviceUserId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('저장되었습니다');
+        } else {
+            showToast('오류: ' + data.error);
+        }
+    })
+    .catch(error => {
+        showToast('저장 중 오류가 발생했습니다');
+        console.error('Error:', error);
+    });
+}
+
+function toggleMappingForm() {
+    const form = document.getElementById('mappingForm');
+    const btn = document.getElementById('showFormBtn');
+    const submitBtn = document.getElementById('submitBtn');
+
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+        btn.style.display = 'none';
+        // 입력값 초기화
+        document.getElementById('mappingId').value = '';
+        document.getElementById('unipassField').value = '';
+        document.getElementById('dbTable').value = '';
+        document.getElementById('dbField').value = '';
+        document.getElementById('fieldType').value = 'string';
+        document.getElementById('fieldLength').value = '';
+        // 버튼 텍스트를 "추가"로 변경
+        submitBtn.textContent = '추가';
+        submitBtn.onclick = submitMapping;
+        // 첫 번째 입력란에 포커스
+        document.getElementById('unipassField').focus();
+    } else {
+        form.style.display = 'none';
+        btn.style.display = 'block';
+        // 입력값 초기화
+        document.getElementById('mappingId').value = '';
+        document.getElementById('unipassField').value = '';
+        document.getElementById('dbTable').value = '';
+        document.getElementById('dbField').value = '';
+        document.getElementById('fieldType').value = 'string';
+        document.getElementById('fieldLength').value = '';
+    }
+}
+
+function submitMapping() {
+    const unipassField = document.getElementById('unipassField').value.trim();
+    const dbTable = document.getElementById('dbTable').value.trim();
+    const dbField = document.getElementById('dbField').value.trim();
+
+    // 유효성 검사
+    if (!unipassField) {
+        showToast('유니패스 항목명을 입력하세요');
+        document.getElementById('unipassField').focus();
+        return;
+    }
+    if (!dbTable) {
+        showToast('DB 테이블명을 입력하세요');
+        document.getElementById('dbTable').focus();
+        return;
+    }
+    if (!dbField) {
+        showToast('DB 필드명을 입력하세요');
+        document.getElementById('dbField').focus();
+        return;
+    }
+
+    fetch(`/api/mapping/{{ declaration.id }}/add/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: new URLSearchParams({
+            'unipass_field_name': unipassField,
+            'db_table_name': dbTable,
+            'db_field_name': dbField,
+            'service_user_id': {{ service_user.id }}
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('매핑이 추가되었습니다');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showToast('오류: ' + data.error);
+        }
+    })
+    .catch(error => {
+        showToast('추가 중 오류가 발생했습니다');
+        console.error('Error:', error);
+    });
+}
+
+function editMapping(mappingId, unipassField, dbTable, dbField, fieldType, fieldLength) {
+    // 폼 표시
+    const form = document.getElementById('mappingForm');
+    const btn = document.getElementById('showFormBtn');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.style.display = 'block';
+    btn.style.display = 'none';
+
+    // 폼에 기존 값 채우기
+    document.getElementById('mappingId').value = mappingId;
+    document.getElementById('unipassField').value = unipassField;
+    document.getElementById('dbTable').value = dbTable;
+    document.getElementById('dbField').value = dbField;
+    document.getElementById('fieldType').value = fieldType;
+    document.getElementById('fieldLength').value = fieldLength || '';
+
+    // 버튼 텍스트 변경
+    submitBtn.textContent = '수정';
+    submitBtn.onclick = function() { updateMapping(mappingId); };
+
+    // 폼으로 스크롤
+    form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function updateMapping(mappingId) {
+    const unipassField = document.getElementById('unipassField').value.trim();
+    const dbTable = document.getElementById('dbTable').value.trim();
+    const dbField = document.getElementById('dbField').value.trim();
+    const fieldType = document.getElementById('fieldType').value;
+    const fieldLength = document.getElementById('fieldLength').value;
+
+    // 유효성 검사
+    if (!unipassField || !dbTable || !dbField) {
+        showToast('필수 필드를 입력하세요');
+        return;
+    }
+
+    fetch(`/api/mapping/${mappingId}/update/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: new URLSearchParams({
+            'unipass_field_name': unipassField,
+            'db_table_name': dbTable,
+            'db_field_name': dbField,
+            'field_type': fieldType,
+            'field_length': fieldLength
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('매핑이 수정되었습니다');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showToast('오류: ' + data.error);
+        }
+    })
+    .catch(error => {
+        showToast('수정 중 오류가 발생했습니다');
+        console.error('Error:', error);
+    });
+}
+
+function deleteMapping(mappingId) {
+    if (!confirm('이 매핑을 삭제하시겠습니까?\n연관된 프롬프트도 함께 삭제됩니다.')) {
+        return;
+    }
+
+    fetch(`/api/mapping/${mappingId}/delete/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('매핑이 삭제되었습니다');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showToast('오류: ' + data.error);
+        }
+    })
+    .catch(error => {
+        showToast('삭제 중 오류가 발생했습니다');
+        console.error('Error:', error);
+    });
+}
+
+function saveMetadata() {
+    const metadata = document.getElementById('metadataInput').value.trim();
+
+    fetch(`/api/declaration/{{ declaration.id }}/metadata/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: new URLSearchParams({
+            'metadata': metadata
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('메타데이터가 저장되었습니다');
+        } else {
+            showToast('오류: ' + data.error);
+        }
+    })
+    .catch(error => {
+        showToast('저장 중 오류가 발생했습니다');
+        console.error('Error:', error);
+    });
+}
+
+function saveAllPrompts(mappingId, serviceUserId) {
+    // 기본 프롬프트와 추가 프롬프트를 모두 저장
+    const basicTextarea = document.getElementById(`basic-prompt-${mappingId}`);
+    const additionalTextarea = document.getElementById(`additional-prompt-${mappingId}`);
+
+    let saveCount = 0;
+    let totalSaves = 0;
+
+    if (basicTextarea) totalSaves++;
+    if (additionalTextarea) totalSaves++;
+
+    const checkCompletion = () => {
+        saveCount++;
+        if (saveCount === totalSaves) {
+            showToast('프롬프트가 저장되었습니다');
+        }
+    };
+
+    // 기본 프롬프트 저장
+    if (basicTextarea) {
+        const basicText = basicTextarea.value;
+        fetch(`/api/prompt/${mappingId}/update/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: new URLSearchParams({
+                'prompt_type': 'basic',
+                'prompt_text': basicText,
+                'service_user_id': serviceUserId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                checkCompletion();
+            } else {
+                showToast('오류: ' + data.error);
+            }
+        })
+        .catch(error => {
+            showToast('저장 중 오류가 발생했습니다');
+            console.error('Error:', error);
+        });
+    }
+
+    // 추가 프롬프트 저장
+    if (additionalTextarea) {
+        const additionalText = additionalTextarea.value;
+        fetch(`/api/prompt/${mappingId}/update/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: new URLSearchParams({
+                'prompt_type': 'additional',
+                'prompt_text': additionalText,
+                'service_user_id': serviceUserId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                checkCompletion();
+            } else {
+                showToast('오류: ' + data.error);
+            }
+        })
+        .catch(error => {
+            showToast('저장 중 오류가 발생했습니다');
+            console.error('Error:', error);
+        });
+    }
+}
+</script>
+{% endblock %}

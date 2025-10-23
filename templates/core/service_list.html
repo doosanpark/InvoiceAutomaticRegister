@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}서비스 리스트 - Invoice System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        margin-bottom: 32px;
+    }
+
+    .service-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 24px;
+    }
+
+    .service-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 32px;
+        border: 2px solid var(--border-color);
+        transition: all 0.3s;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .service-card:hover {
+        border-color: var(--primary-blue);
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-4px);
+    }
+
+    .service-card-icon {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, var(--primary-blue), #667eea);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        margin-bottom: 20px;
+        color: white;
+    }
+
+    .service-card-title {
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 12px;
+        color: var(--text-primary);
+    }
+
+    .service-card-desc {
+        font-size: 14px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+
+    .service-card-arrow {
+        margin-top: 20px;
+        color: var(--primary-blue);
+        font-weight: 600;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1>서비스 리스트</h1>
+        <p style="color: var(--text-secondary); font-size: 16px;">
+            관리할 서비스를 선택하세요
+        </p>
+    </div>
+    <a href="{% url 'service_add' %}" class="btn btn-primary" style="white-space: nowrap;">
+        + 서비스 추가
+    </a>
+</div>
+
+<div class="service-grid">
+    {% for service in services %}
+    <a href="{% url 'service_detail' service.slug %}" class="service-card">
+        <div class="service-card-icon">📦</div>
+        <div class="service-card-title">{{ service.name }}</div>
+        <div class="service-card-desc">
+            {% if service.description %}
+                {{ service.description }}
+            {% else %}
+                {{ service.name }} 서비스 관리
+            {% endif %}
+        </div>
+        <div class="service-card-arrow">
+            서비스 관리 →
+        </div>
+    </a>
+    {% empty %}
+    <div class="card" style="grid-column: 1 / -1;">
+        <p style="text-align: center; color: var(--text-secondary); padding: 40px;">
+            등록된 서비스가 없습니다.
+        </p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

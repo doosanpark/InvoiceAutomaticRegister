@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}대시보드 - Invoice System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .welcome-section {
+        background: linear-gradient(135deg, var(--primary-blue), #667eea);
+        color: white;
+        border-radius: 20px;
+        padding: 48px;
+        margin-bottom: 40px;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .welcome-section h1 {
+        color: white;
+        margin-bottom: 12px;
+    }
+
+    .welcome-section p {
+        font-size: 18px;
+        opacity: 0.95;
+    }
+
+    .service-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 24px;
+    }
+
+    .service-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 28px;
+        border: 2px solid var(--border-color);
+        transition: all 0.3s;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .service-card:hover {
+        border-color: var(--primary-blue);
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-4px);
+    }
+
+    .service-card-title {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: var(--text-primary);
+    }
+
+    .service-card-arrow {
+        margin-top: 16px;
+        color: var(--primary-blue);
+        font-weight: 600;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="welcome-section">
+    <h1>안녕하세요, {{ user.customs_name }}님</h1>
+    <p>간편하고 안전하게 인보이스를 관리하세요</p>
+</div>
+
+<h2 style="margin-bottom: 24px;">내 서비스</h2>
+
+<div class="service-grid">
+    {% for service_user in service_users %}
+    <a href="{% url 'declaration_list_with_user' service_user.service.slug service_user.user.customs_code|default:'default' %}" class="service-card">
+        <div style="font-size: 32px; margin-bottom: 12px;">📦</div>
+        <div class="service-card-title">{{ service_user.service.name }}</div>
+        <div style="color: var(--text-secondary); font-size: 14px;">
+            신고서 관리 및 프롬프트 설정
+        </div>
+        <div class="service-card-arrow">
+            신고서 관리 →
+        </div>
+    </a>
+    {% empty %}
+    <div class="card" style="grid-column: 1 / -1;">
+        <p style="text-align: center; color: var(--text-secondary); padding: 40px;">
+            할당된 서비스가 없습니다.<br>
+            관리자에게 문의하세요.
+        </p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

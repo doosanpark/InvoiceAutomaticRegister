@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ service.name }} - 업체 리스트{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .breadcrumb a {
+        color: var(--primary-blue);
+        text-decoration: none;
+    }
+
+    .page-header {
+        margin-bottom: 32px;
+    }
+
+    .company-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .company-item {
+        background: var(--card-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        padding: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .company-item:hover {
+        border-color: var(--primary-blue);
+        box-shadow: var(--shadow-md);
+    }
+
+    .company-info {
+        flex: 1;
+    }
+
+    .company-name {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+    }
+
+    .company-code {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .company-arrow {
+        color: var(--text-tertiary);
+        font-size: 20px;
+    }
+
+    .default-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        background: linear-gradient(135deg, var(--primary-blue), #667eea);
+        color: white;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-left: 12px;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: var(--primary-blue);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #3182ce;
+    }
+
+    .btn-secondary {
+        background: var(--bg-color);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+        background: var(--border-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'service_list' %}">서비스 리스트</a>
+    <span>›</span>
+    <span>{{ service.name }}</span>
+</div>
+
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1>{{ service.name }}</h1>
+        <p style="color: var(--text-secondary); font-size: 16px;">
+            업체를 선택하여 신고서를 관리하세요
+        </p>
+    </div>
+    <a href="{% url 'add_customs_to_service' service.slug %}" class="btn btn-primary" style="white-space: nowrap;">
+        + 관세사 추가
+    </a>
+</div>
+
+<!-- 기본 설정 섹션 -->
+<h3 style="margin-top: 40px; margin-bottom: 16px; font-size: 18px; font-weight: 600; color: var(--text-primary);">기본 설정</h3>
+<div class="company-list">
+    {% for service_user in service_users %}
+    {% if service_user.is_default or not service_user.user %}
+    <a href="{% url 'declaration_list_with_user' service.slug 'default' %}" class="company-item">
+        <div class="company-info">
+            <div class="company-name">
+                기본
+                <span class="default-badge">DEFAULT</span>
+            </div>
+            <div class="company-code">
+                기본 입력항목 설정 (관리자 전용)
+            </div>
+        </div>
+        <div class="company-arrow">→</div>
+    </a>
+    {% endif %}
+    {% endfor %}
+</div>
+
+<!-- 관세사 리스트 섹션 -->
+<h3 style="margin-top: 40px; margin-bottom: 16px; font-size: 18px; font-weight: 600; color: var(--text-primary);">관세사 리스트</h3>
+<div class="company-list">
+    {% for service_user in service_users %}
+    {% if not service_user.is_default and service_user.user %}
+    <a href="{% url 'declaration_list_with_user' service.slug service_user.user.customs_code %}" class="company-item">
+        <div class="company-info">
+            <div class="company-name">
+                {{ service_user.user.customs_name }}
+            </div>
+            <div class="company-code">
+                관세사부호: {{ service_user.user.customs_code }}
+            </div>
+        </div>
+        <div class="company-arrow">→</div>
+    </a>
+    {% endif %}
+    {% endfor %}
+
+    {% if not service_users or service_users|length == 1 %}
+    <div class="card">
+        <p style="text-align: center; color: var(--text-secondary); padding: 40px;">
+            등록된 관세사가 없습니다.
+        </p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
