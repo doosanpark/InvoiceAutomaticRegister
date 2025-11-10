@@ -103,6 +103,8 @@ class Declaration(models.Model):
     declaration_type = models.CharField(max_length=20, choices=DECLARATION_TYPE_CHOICES,
                                        blank=True, null=True, verbose_name='신고서 유형')
     description = models.TextField(blank=True, null=True, verbose_name='설명')
+    specification_file = models.FileField(upload_to='specifications/%Y/%m/', blank=True, null=True,
+                                         verbose_name='항목정의서')
     is_active = models.BooleanField(default=True, verbose_name='활성화 여부')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성일시')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='수정일시')

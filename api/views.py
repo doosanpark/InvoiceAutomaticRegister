@@ -97,16 +97,8 @@ def process_invoice(request):
         ).order_by('priority')
 
         mapping_info = []
-        basic_prompts = []
-        additional_prompts = []
 
         for mapping in mappings:
-            mapping_info.append({
-                'unipass_field_name': mapping.unipass_field_name,
-                'db_table_name': mapping.db_table_name,
-                'db_field_name': mapping.db_field_name
-            })
-
             # 기본 프롬프트
             basic_prompt = PromptConfig.objects.filter(
                 mapping=mapping,
@@ -114,9 +106,6 @@ def process_invoice(request):
                 service_user__isnull=True,
                 is_active=True
             ).first()
-
-            if basic_prompt:
-                basic_prompts.append(basic_prompt.prompt_text)
 
             # 추가 프롬프트
             additional_prompt = PromptConfig.objects.filter(
@@ -126,16 +115,24 @@ def process_invoice(request):
                 is_active=True
             ).first()
 
-            if additional_prompt:
-                additional_prompts.append(additional_prompt.prompt_text)
+            # 매핑 정보에 프롬프트 포함
+            mapping_info.append({
+                'unipass_field_name': mapping.unipass_field_name,
+                'db_table_name': mapping.db_table_name,
+                'db_field_name': mapping.db_field_name,
+                'basic_prompt': basic_prompt.prompt_text if basic_prompt else None,
+                'additional_prompt': additional_prompt.prompt_text if additional_prompt else None
+            })
+
+        # AI 메타데이터 (최상위 프롬프트)
+        ai_metadata = declaration.description if declaration.description else None
 
         # 인보이스 처리
         processor = InvoiceProcessor()
         result = processor.process(
             image_path=image_path,
             mapping_info=mapping_info,
-            basic_prompts=basic_prompts,
-            additional_prompts=additional_prompts
+            ai_metadata=ai_metadata
         )
 
         # 로그 업데이트
@@ -160,6 +157,8 @@ def process_invoice(request):
             'ocr_text': result.get('ocr_text'),
             'processing_time': result.get('processing_time'),
             'log_id': process_log.id,
+            'ai_metadata': ai_metadata,
+            'mapping_info': mapping_info,
             'error': result.get('error')
         }, status=status.HTTP_200_OK if result['success'] else status.HTTP_500_INTERNAL_SERVER_ERROR)
 

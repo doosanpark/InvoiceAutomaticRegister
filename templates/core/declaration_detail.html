@@ -478,6 +478,32 @@
                     placeholder="예: 이 신고서는 수출신고서입니다. 신고인 정보, 물품정보, 거래조건 등이 포함됩니다. 특별히 주의해야 할 사항..."
                 >{{ declaration.description|default:"" }}</textarea>
             </div>
+
+            <div class="info-item" style="grid-column: 1 / -1; margin-top: 20px;">
+                <div class="info-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span>📄 항목정의서 (엑셀 파일)</span>
+                    <div style="display: flex; gap: 8px;">
+                        {% if declaration.specification_file %}
+                        <a href="{% url 'download_specification' declaration.id %}" class="btn-save" style="width: auto; margin-top: 0; padding: 8px 20px; text-decoration: none; display: inline-block;">
+                            다운로드
+                        </a>
+                        {% endif %}
+                        <button class="btn-save" onclick="document.getElementById('specificationFileInput').click()" style="width: auto; margin-top: 0; padding: 8px 20px;">
+                            {% if declaration.specification_file %}파일 변경{% else %}파일 업로드{% endif %}
+                        </button>
+                    </div>
+                </div>
+                <input type="file" id="specificationFileInput" accept=".xlsx,.xls" style="display: none;" onchange="uploadSpecification()" />
+                {% if declaration.specification_file %}
+                <div style="padding: 12px; background: var(--bg-color); border-radius: 6px; font-size: 13px;">
+                    📎 {{ declaration.specification_file.name|default:"파일명" }}
+                </div>
+                {% else %}
+                <div style="padding: 12px; background: var(--bg-color); border-radius: 6px; font-size: 13px; color: var(--text-tertiary);">
+                    업로드된 파일이 없습니다.
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
@@ -490,82 +516,88 @@
     </div>
 
     {% if mapping_data %}
-    <div class="mapping-table-container">
-        <table class="mapping-table">
-            <thead>
-                <tr>
-                    <th>유니패스 항목명</th>
-                    <th>DB 테이블.필드</th>
-                    <th>타입</th>
-                    {% if service_user.is_default and user.user_type == 'admin' %}
-                    <th>📝 기본 입력항목</th>
-                    {% endif %}
-                    <th>➕ 추가 입력항목</th>
-                    <th style="text-align: center;">작업</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in mapping_data %}
-                <tr id="mapping-{{ item.mapping.id }}">
-                    <td class="field-name-cell">{{ item.mapping.unipass_field_name }}</td>
-                    <td class="db-info-cell">{{ item.mapping.db_table_name }}.{{ item.mapping.db_field_name }}</td>
-                    <td class="type-cell">
-                        <span class="field-type-badge">
-                            {{ item.mapping.get_field_type_display }}
-                            {% if item.mapping.field_length %}({{ item.mapping.field_length }}){% endif %}
-                        </span>
-                    </td>
-
-                    <!-- 기본 입력항목 (기본 프로필이고 관리자인 경우만 표시) -->
-                    {% if service_user.is_default and user.user_type == 'admin' %}
-                    <td class="prompt-cell">
-                        <textarea
-                            class="prompt-textarea"
-                            id="basic-prompt-{{ item.mapping.id }}"
-                            placeholder="기본 프롬프트 입력..."
-                        >{{ item.basic_prompt.prompt_text|default:"" }}</textarea>
-                    </td>
-                    {% endif %}
-
-                    <!-- 추가 입력항목 -->
-                    <td class="prompt-cell">
-                        <textarea
-                            class="prompt-textarea"
-                            id="additional-prompt-{{ item.mapping.id }}"
-                            placeholder="추가 프롬프트 입력..."
-                            {% if not can_edit_additional %}disabled{% endif %}
-                        >{{ item.additional_prompt.prompt_text|default:"" }}</textarea>
-                        {% if not can_edit_additional %}
-                        <div style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">🔒 권한 없음</div>
+        {% regroup mapping_data by mapping.db_table_name as table_groups %}
+        {% for table_group in table_groups %}
+        <div class="mapping-table-container" style="margin-bottom: 32px;">
+            <div style="background: linear-gradient(135deg, var(--primary-blue), #667eea); color: white; padding: 12px 16px; font-weight: 600; font-size: 15px; border-radius: 12px 12px 0 0;">
+                📦 {{ table_group.grouper }}
+            </div>
+            <table class="mapping-table">
+                <thead>
+                    <tr>
+                        <th>유니패스 항목명</th>
+                        <th>DB 필드</th>
+                        <th>타입</th>
+                        {% if service_user.is_default and user.user_type == 'admin' %}
+                        <th>📝 기본 입력항목</th>
                         {% endif %}
-                    </td>
+                        <th>➕ 추가 입력항목</th>
+                        <th style="text-align: center;">작업</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in table_group.list %}
+                    <tr id="mapping-{{ item.mapping.id }}">
+                        <td class="field-name-cell">{{ item.mapping.unipass_field_name }}</td>
+                        <td class="db-info-cell">{{ item.mapping.db_field_name }}</td>
+                        <td class="type-cell">
+                            <span class="field-type-badge">
+                                {{ item.mapping.get_field_type_display }}
+                                {% if item.mapping.field_length %}({{ item.mapping.field_length }}){% endif %}
+                            </span>
+                        </td>
 
-                    <td class="actions-cell">
-                        <div style="display: flex; flex-direction: column; gap: 8px; align-items: stretch;">
-                            {% if service_user.is_default and user.user_type == 'admin' %}
-                            <button class="btn-save-action" onclick="saveAllPrompts({{ item.mapping.id }}, {{ service_user.id }})" title="프롬프트 저장">
-                                💾 저장
-                            </button>
-                            {% elif can_edit_additional %}
-                            <button class="btn-save-action" onclick="savePrompt({{ item.mapping.id }}, 'additional', {{ service_user.id }})" title="프롬프트 저장">
-                                💾 저장
-                            </button>
+                        <!-- 기본 입력항목 (기본 프로필이고 관리자인 경우만 표시) -->
+                        {% if service_user.is_default and user.user_type == 'admin' %}
+                        <td class="prompt-cell">
+                            <textarea
+                                class="prompt-textarea"
+                                id="basic-prompt-{{ item.mapping.id }}"
+                                placeholder="기본 프롬프트 입력..."
+                            >{{ item.basic_prompt.prompt_text|default:"" }}</textarea>
+                        </td>
+                        {% endif %}
+
+                        <!-- 추가 입력항목 -->
+                        <td class="prompt-cell">
+                            <textarea
+                                class="prompt-textarea"
+                                id="additional-prompt-{{ item.mapping.id }}"
+                                placeholder="추가 프롬프트 입력..."
+                                {% if not can_edit_additional %}disabled{% endif %}
+                            >{{ item.additional_prompt.prompt_text|default:"" }}</textarea>
+                            {% if not can_edit_additional %}
+                            <div style="margin-top: 8px; font-size: 12px; color: var(--text-tertiary);">🔒 권한 없음</div>
                             {% endif %}
-                            <div style="display: flex; gap: 4px; justify-content: center;">
-                                <button class="btn-edit" onclick="editMapping({{ item.mapping.id }}, '{{ item.mapping.unipass_field_name }}', '{{ item.mapping.db_table_name }}', '{{ item.mapping.db_field_name }}', '{{ item.mapping.field_type }}', {{ item.mapping.field_length|default:'null' }})" title="매핑 수정">
-                                    ✏️
+                        </td>
+
+                        <td class="actions-cell">
+                            <div style="display: flex; flex-direction: column; gap: 8px; align-items: stretch;">
+                                {% if service_user.is_default and user.user_type == 'admin' %}
+                                <button class="btn-save-action" onclick="saveAllPrompts({{ item.mapping.id }}, {{ service_user.id }})" title="프롬프트 저장">
+                                    💾 저장
                                 </button>
-                                <button class="btn-delete" onclick="deleteMapping({{ item.mapping.id }})" title="매핑 삭제">
-                                    🗑️
+                                {% elif can_edit_additional %}
+                                <button class="btn-save-action" onclick="savePrompt({{ item.mapping.id }}, 'additional', {{ service_user.id }})" title="프롬프트 저장">
+                                    💾 저장
                                 </button>
+                                {% endif %}
+                                <div style="display: flex; gap: 4px; justify-content: center;">
+                                    <button class="btn-edit" onclick="editMapping({{ item.mapping.id }}, '{{ item.mapping.unipass_field_name }}', '{{ item.mapping.db_table_name }}', '{{ item.mapping.db_field_name }}', '{{ item.mapping.field_type }}', {{ item.mapping.field_length|default:'null' }})" title="매핑 수정">
+                                        ✏️
+                                    </button>
+                                    <button class="btn-delete" onclick="deleteMapping({{ item.mapping.id }})" title="매핑 삭제">
+                                        🗑️
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
     {% else %}
     <div class="card">
         <p style="text-align: center; color: var(--text-secondary); padding: 40px;">
@@ -974,6 +1006,41 @@ function saveAllPrompts(mappingId, serviceUserId) {
             console.error('Error:', error);
         });
     }
+}
+
+function uploadSpecification() {
+    const fileInput = document.getElementById('specificationFileInput');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch(`/api/declaration/{{ declaration.id }}/specification/upload/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('항목정의서가 업로드되었습니다');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showToast('오류: ' + data.error);
+        }
+    })
+    .catch(error => {
+        showToast('업로드 중 오류가 발생했습니다');
+        console.error('Error:', error);
+    });
 }
 </script>
 {% endblock %}

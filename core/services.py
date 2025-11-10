@@ -94,8 +94,7 @@ class GeminiService:
         image_path: str,
         ocr_text: str,
         mapping_info: list,
-        basic_prompts: list,
-        additional_prompts: list
+        ai_metadata: str = None
     ) -> Dict[str, Any]:
         """
         인보이스 이미지와 OCR 텍스트를 분석하여 JSON 형태로 데이터 정리
@@ -103,9 +102,8 @@ class GeminiService:
         Args:
             image_path: 이미지 파일 경로
             ocr_text: OCR로 추출된 텍스트
-            mapping_info: 매핑 정보 리스트
-            basic_prompts: 기본 입력항목 프롬프트 리스트
-            additional_prompts: 추가 입력항목 프롬프트 리스트
+            mapping_info: 매핑 정보 리스트 (프롬프트 포함)
+            ai_metadata: AI 메타데이터 (최상위 컨텍스트)
 
         Returns:
             정리된 JSON 데이터
@@ -122,9 +120,8 @@ class GeminiService:
 
             # 프롬프트 구성
             prompt = self._build_prompt(
-                mapping_structure,
-                basic_prompts,
-                additional_prompts,
+                mapping_info,
+                ai_metadata,
                 ocr_text
             )
 
@@ -168,39 +165,70 @@ class GeminiService:
 
     def _build_prompt(
         self,
-        mapping_structure: Dict,
-        basic_prompts: list,
-        additional_prompts: list,
+        mapping_info: list,
+        ai_metadata: str,
         ocr_text: str
     ) -> str:
         """프롬프트 구성"""
 
-        # 한글명 리스트 생성 (유니패스 항목명 사용)
-        field_list = [korean_name for korean_name in mapping_structure.keys()]
+        prompt = "당신은 인보이스(Invoice) 데이터를 분석하고 구조화하는 전문가입니다.\n\n"
 
-        prompt = f"""당신은 인보이스(Invoice) 데이터를 분석하고 구조화하는 전문가입니다.
+        prompt += "=== 중요: 첨부된 이미지를 우선적으로 분석하세요 ===\n"
+        prompt += "이 요청에는 인보이스 이미지가 첨부되어 있습니다. 반드시 이미지를 직접 확인하여 정확한 정보를 추출하세요.\n\n"
 
-[추출할 항목]
-다음 항목들의 데이터를 추출해주세요:
-{json.dumps(field_list, ensure_ascii=False, indent=2)}
+        # AI 메타데이터를 최상위로 배치
+        if ai_metadata:
+            prompt += f"[문서 정보]\n{ai_metadata}\n\n"
 
-[기본 입력 규칙]
-"""
-        for prompt_item in basic_prompts:
-            prompt += f"- {prompt_item}\n"
+        # 매핑 정보 표시
+        prompt += "[데이터베이스 매핑 정보]\n"
+        prompt += "추출된 데이터는 다음 DB 구조에 저장됩니다:\n\n"
 
-        if additional_prompts:
-            prompt += "\n[추가 입력 규칙]\n"
-            for prompt_item in additional_prompts:
-                prompt += f"- {prompt_item}\n"
+        current_table = None
+        for mapping in mapping_info:
+            table_name = mapping['db_table_name']
+            field_name = mapping['db_field_name']
+            unipass_name = mapping['unipass_field_name']
 
+            # 테이블이 변경되면 테이블명 표시
+            if current_table != table_name:
+                if current_table is not None:
+                    prompt += "\n"
+                prompt += f"📦 {table_name} 테이블:\n"
+                current_table = table_name
+
+            prompt += f"  - {field_name} ← {unipass_name}\n"
+
+        prompt += "\n"
+
+        # 추출할 항목 및 규칙
+        prompt += "[추출할 항목 및 규칙]\n"
+        prompt += "다음 항목들의 데이터를 이미지에서 찾아 아래 규칙에 따라 추출해주세요:\n\n"
+
+        # 각 매핑 정보별로 항목과 프롬프트 배치
+        for mapping in mapping_info:
+            field_name = mapping['unipass_field_name']
+            db_info = f"{mapping['db_table_name']}.{mapping['db_field_name']}"
+
+            prompt += f"• {field_name} (→ {db_info})\n"
+
+            if mapping.get('basic_prompt'):
+                prompt += f"  - {mapping['basic_prompt']}\n"
+
+            if mapping.get('additional_prompt'):
+                prompt += f"  - {mapping['additional_prompt']}\n"
+
+            prompt += "\n"
+
+        # OCR 텍스트 (참고용)
         if ocr_text:
-            prompt += f"\n[OCR 추출 텍스트]\n{ocr_text}\n"
+            prompt += "[OCR 추출 텍스트 - 참고용]\n"
+            prompt += "다음은 OCR로 추출한 텍스트입니다. 참고용으로만 사용하고, 반드시 이미지를 직접 확인하여 정확한 값을 추출하세요:\n\n"
+            prompt += f"{ocr_text}\n\n"
 
-        prompt += """
-[응답 형식]
+        prompt += """[응답 형식]
 반드시 다음 형식의 JSON으로 응답해주세요.
-**중요**: JSON의 키는 위에 제시된 한글 항목명을 그대로 사용해야 합니다.
+**중요**: JSON의 키는 위에 제시된 한글 항목명(유니패스 필드명)을 그대로 사용해야 합니다.
 
 ```json
 {
@@ -220,12 +248,14 @@ class GeminiService:
 ```
 
 주의사항:
-1. 이미지와 OCR 텍스트를 모두 참고하여 정확한 정보를 추출하세요.
-2. 값을 찾을 수 없는 경우 null을 사용하세요.
-3. 날짜는 YYYY-MM-DD 형식으로 변환하세요.
-4. 숫자는 천단위 구분자 없이 숫자만 추출하세요.
-5. JSON 키는 위에 제시된 한글 항목명을 정확히 사용하세요.
-6. 반드시 JSON 형식으로만 응답하세요.
+1. **반드시 첨부된 이미지를 직접 분석**하여 정확한 정보를 추출하세요.
+2. OCR 텍스트는 참고용이며, 이미지가 우선입니다.
+3. 값을 찾을 수 없는 경우 null을 사용하세요.
+4. 날짜는 YYYY-MM-DD 형식으로 변환하세요.
+5. 숫자는 천단위 구분자 없이 숫자만 추출하세요.
+6. JSON 키는 위에 제시된 한글 항목명을 정확히 사용하세요.
+7. 반드시 JSON 형식으로만 응답하세요.
+8. 각 항목별로 제시된 규칙을 준수하세요.
 """
         return prompt
 
@@ -260,8 +290,7 @@ class ChatGPTService:
         image_path: str,
         ocr_text: str,
         mapping_info: list,
-        basic_prompts: list,
-        additional_prompts: list
+        ai_metadata: str = None
     ) -> Dict[str, Any]:
         """
         인보이스 이미지와 OCR 텍스트를 분석하여 JSON 형태로 데이터 정리
@@ -269,9 +298,8 @@ class ChatGPTService:
         Args:
             image_path: 이미지 파일 경로
             ocr_text: OCR로 추출된 텍스트
-            mapping_info: 매핑 정보 리스트
-            basic_prompts: 기본 입력항목 프롬프트 리스트
-            additional_prompts: 추가 입력항목 프롬프트 리스트
+            mapping_info: 매핑 정보 리스트 (프롬프트 포함)
+            ai_metadata: AI 메타데이터 (최상위 컨텍스트)
 
         Returns:
             정리된 JSON 데이터
@@ -289,21 +317,24 @@ class ChatGPTService:
 
             # 프롬프트 구성
             system_prompt = self._build_system_prompt(
-                mapping_structure,
-                basic_prompts,
-                additional_prompts
+                mapping_info,
+                ai_metadata
             )
 
             if ocr_text:
                 user_prompt = f"""
-다음은 인보이스 이미지에서 OCR로 추출한 텍스트입니다:
+첨부된 인보이스 이미지를 분석하여 데이터를 추출해주세요.
+
+[OCR 추출 텍스트 - 참고용]
+다음은 OCR로 추출한 텍스트입니다. 참고용으로만 사용하고, 반드시 이미지를 직접 확인하여 정확한 값을 추출하세요:
 
 {ocr_text}
 
-위 정보와 이미지를 기반으로 매핑 정보에 맞게 JSON 형태로 데이터를 정리해주세요.
+**중요**: 위 OCR 텍스트는 참고용이며, 실제 데이터는 첨부된 이미지를 직접 분석하여 추출해주세요.
+시스템 프롬프트에 명시된 매핑 정보와 규칙에 따라 JSON 형태로 데이터를 정리해주세요.
 """
             else:
-                user_prompt = "이미지를 분석하여 매핑 정보에 맞게 JSON 형태로 데이터를 정리해주세요."
+                user_prompt = "첨부된 인보이스 이미지를 직접 분석하여 시스템 프롬프트에 명시된 매핑 정보와 규칙에 따라 JSON 형태로 데이터를 정리해주세요."
 
             # ChatGPT API 호출 (GPT-4 Vision)
             response = self.client.chat.completions.create(
@@ -370,35 +401,63 @@ class ChatGPTService:
 
     def _build_system_prompt(
         self,
-        mapping_structure: Dict,
-        basic_prompts: list,
-        additional_prompts: list
+        mapping_info: list,
+        ai_metadata: str
     ) -> str:
         """시스템 프롬프트 구성"""
 
-        # 한글명 리스트 생성 (유니패스 항목명 사용)
-        field_list = [korean_name for korean_name in mapping_structure.keys()]
+        prompt = "당신은 인보이스(Invoice) 데이터를 분석하고 구조화하는 전문가입니다.\n\n"
 
-        prompt = f"""당신은 인보이스(Invoice) 데이터를 분석하고 구조화하는 전문가입니다.
+        prompt += "=== 중요: 첨부된 이미지를 우선적으로 분석하세요 ===\n"
+        prompt += "이 요청에는 인보이스 이미지가 첨부되어 있습니다. 반드시 이미지를 직접 확인하여 정확한 정보를 추출하세요.\n\n"
 
-[추출할 항목]
-다음 항목들의 데이터를 추출해주세요:
-{json.dumps(field_list, ensure_ascii=False, indent=2)}
+        # AI 메타데이터를 최상위로 배치
+        if ai_metadata:
+            prompt += f"[문서 정보]\n{ai_metadata}\n\n"
 
-[기본 입력 규칙]
-"""
-        for prompt_item in basic_prompts:
-            prompt += f"- {prompt_item}\n"
+        # 매핑 정보 표시
+        prompt += "[데이터베이스 매핑 정보]\n"
+        prompt += "추출된 데이터는 다음 DB 구조에 저장됩니다:\n\n"
 
-        if additional_prompts:
-            prompt += "\n[추가 입력 규칙]\n"
-            for prompt_item in additional_prompts:
-                prompt += f"- {prompt_item}\n"
+        current_table = None
+        for mapping in mapping_info:
+            table_name = mapping['db_table_name']
+            field_name = mapping['db_field_name']
+            unipass_name = mapping['unipass_field_name']
 
-        prompt += """
-[응답 형식]
+            # 테이블이 변경되면 테이블명 표시
+            if current_table != table_name:
+                if current_table is not None:
+                    prompt += "\n"
+                prompt += f"📦 {table_name} 테이블:\n"
+                current_table = table_name
+
+            prompt += f"  - {field_name} ← {unipass_name}\n"
+
+        prompt += "\n"
+
+        # 추출할 항목 및 규칙
+        prompt += "[추출할 항목 및 규칙]\n"
+        prompt += "다음 항목들의 데이터를 이미지에서 찾아 아래 규칙에 따라 추출해주세요:\n\n"
+
+        # 각 매핑 정보별로 항목과 프롬프트 배치
+        for mapping in mapping_info:
+            field_name = mapping['unipass_field_name']
+            db_info = f"{mapping['db_table_name']}.{mapping['db_field_name']}"
+
+            prompt += f"• {field_name} (→ {db_info})\n"
+
+            if mapping.get('basic_prompt'):
+                prompt += f"  - {mapping['basic_prompt']}\n"
+
+            if mapping.get('additional_prompt'):
+                prompt += f"  - {mapping['additional_prompt']}\n"
+
+            prompt += "\n"
+
+        prompt += """[응답 형식]
 반드시 다음 형식의 JSON으로 응답해주세요.
-**중요**: JSON의 키는 위에 제시된 한글 항목명을 그대로 사용해야 합니다.
+**중요**: JSON의 키는 위에 제시된 한글 항목명(유니패스 필드명)을 그대로 사용해야 합니다.
 
 ```json
 {
@@ -418,12 +477,14 @@ class ChatGPTService:
 ```
 
 주의사항:
-1. 이미지와 OCR 텍스트를 모두 참고하여 정확한 정보를 추출하세요.
-2. 값을 찾을 수 없는 경우 null을 사용하세요.
-3. 날짜는 YYYY-MM-DD 형식으로 변환하세요.
-4. 숫자는 천단위 구분자 없이 숫자만 추출하세요.
-5. JSON 키는 위에 제시된 한글 항목명을 정확히 사용하세요.
-6. 반드시 JSON 형식으로만 응답하세요.
+1. **반드시 첨부된 이미지를 직접 분석**하여 정확한 정보를 추출하세요.
+2. OCR 텍스트는 참고용이며, 이미지가 우선입니다.
+3. 값을 찾을 수 없는 경우 null을 사용하세요.
+4. 날짜는 YYYY-MM-DD 형식으로 변환하세요.
+5. 숫자는 천단위 구분자 없이 숫자만 추출하세요.
+6. JSON 키는 위에 제시된 한글 항목명을 정확히 사용하세요.
+7. 반드시 JSON 형식으로만 응답하세요.
+8. 각 항목별로 제시된 규칙을 준수하세요.
 """
         return prompt
 
@@ -462,8 +523,7 @@ class InvoiceProcessor:
         self,
         image_path: str,
         mapping_info: list,
-        basic_prompts: list,
-        additional_prompts: list = None
+        ai_metadata: str = None
     ) -> Dict[str, Any]:
         """
         전체 인보이스 처리 파이프라인
@@ -471,9 +531,8 @@ class InvoiceProcessor:
 
         Args:
             image_path: 이미지 파일 경로
-            mapping_info: 매핑 정보
-            basic_prompts: 기본 프롬프트
-            additional_prompts: 추가 프롬프트
+            mapping_info: 매핑 정보 (프롬프트 포함)
+            ai_metadata: AI 메타데이터 (최상위 컨텍스트)
 
         Returns:
             처리 결과
@@ -498,8 +557,7 @@ class InvoiceProcessor:
                 image_path=image_path,
                 ocr_text=ocr_text,
                 mapping_info=mapping_info,
-                basic_prompts=basic_prompts,
-                additional_prompts=additional_prompts or []
+                ai_metadata=ai_metadata
             )
 
             result['gpt_response'] = ai_result.get('raw_response')

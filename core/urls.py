@@ -35,4 +35,6 @@ urlpatterns = [
     path('api/mapping/<int:mapping_id>/update/', views.update_mapping_view, name='update_mapping'),
     path('api/mapping/<int:mapping_id>/delete/', views.delete_mapping_view, name='delete_mapping'),
     path('api/declaration/<int:declaration_id>/metadata/', views.update_metadata_view, name='update_metadata'),
+    path('api/declaration/<int:declaration_id>/specification/upload/', views.upload_specification_view, name='upload_specification'),
+    path('api/declaration/<int:declaration_id>/specification/download/', views.download_specification_view, name='download_specification'),
 ]

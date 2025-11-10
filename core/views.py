@@ -2,13 +2,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, FileResponse, Http404
 from django.views.decorators.http import require_http_methods
 from .models import (
     CustomUser, Service, ServiceUser, Declaration,
     MappingInfo, PromptConfig
 )
 from .forms import LoginForm, PasswordChangeForm, ServiceForm, CustomUserForm, DeclarationForm
+import os
 
 
 def login_view(request):
@@ -281,7 +282,7 @@ def declaration_detail_view(request, service_slug, customs_code, declaration_cod
     mappings = MappingInfo.objects.filter(
         declaration=declaration,
         is_active=True
-    ).order_by('priority')
+    ).order_by('db_table_name', 'priority')
 
     # 각 매핑에 대한 프롬프트 정보
     mapping_data = []
@@ -584,3 +585,63 @@ def update_metadata_view(request, declaration_id):
         'success': True,
         'message': '메타데이터가 저장되었습니다.'
     })
+
+
+@login_required
+@require_http_methods(["POST"])
+def upload_specification_view(request, declaration_id):
+    """항목정의서 파일 업로드 (AJAX)"""
+    declaration = get_object_or_404(Declaration, pk=declaration_id)
+
+    # 권한 체크 (관리자만)
+    if request.user.user_type != 'admin':
+        return JsonResponse({'success': False, 'error': '관리자만 업로드할 수 있습니다.'})
+
+    if 'file' not in request.FILES:
+        return JsonResponse({'success': False, 'error': '파일이 필요합니다.'})
+
+    file = request.FILES['file']
+
+    # 파일 확장자 검증 (엑셀 파일만)
+    allowed_extensions = ['.xlsx', '.xls']
+    file_ext = os.path.splitext(file.name)[1].lower()
+    if file_ext not in allowed_extensions:
+        return JsonResponse({'success': False, 'error': '엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.'})
+
+    # 기존 파일 삭제
+    if declaration.specification_file:
+        if os.path.exists(declaration.specification_file.path):
+            os.remove(declaration.specification_file.path)
+
+    # 새 파일 저장
+    declaration.specification_file = file
+    declaration.save()
+
+    return JsonResponse({
+        'success': True,
+        'message': '항목정의서가 업로드되었습니다.',
+        'file_name': file.name
+    })
+
+
+@login_required
+def download_specification_view(request, declaration_id):
+    """항목정의서 파일 다운로드"""
+    declaration = get_object_or_404(Declaration, pk=declaration_id)
+
+    if not declaration.specification_file:
+        raise Http404('파일이 존재하지 않습니다.')
+
+    # 파일 경로
+    file_path = declaration.specification_file.path
+
+    if not os.path.exists(file_path):
+        raise Http404('파일이 존재하지 않습니다.')
+
+    # 파일 이름
+    file_name = os.path.basename(file_path)
+
+    # 파일 응답
+    response = FileResponse(open(file_path, 'rb'))
+    response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+    return response
