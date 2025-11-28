@@ -17,27 +17,33 @@ class OCRService:
     """Google Vision API를 사용한 OCR 서비스"""
 
     def __init__(self):
-        self.use_google_vision = False
-        if settings.GOOGLE_VISION_CREDENTIALS and os.path.exists(settings.GOOGLE_VISION_CREDENTIALS):
+        # OCR 필수: Google Vision API 설정 필수
+        if not settings.GOOGLE_VISION_CREDENTIALS:
+            raise Exception("Google Vision API 자격증명이 설정되지 않았습니다. .env 파일에 GOOGLE_VISION_CREDENTIALS를 설정해주세요.")
+
+        if not os.path.exists(settings.GOOGLE_VISION_CREDENTIALS):
+            raise Exception(f"Google Vision API 자격증명 파일을 찾을 수 없습니다: {settings.GOOGLE_VISION_CREDENTIALS}")
+
+        try:
             os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = settings.GOOGLE_VISION_CREDENTIALS
             self.client = vision.ImageAnnotatorClient()
-            self.use_google_vision = True
+            print("[INFO] Google Vision OCR 초기화 성공")
+        except Exception as e:
+            raise Exception(f"Google Vision API 초기화 실패: {str(e)}\n\n해결 방법:\n1. Google Cloud Console에서 Vision API 활성화\n2. 서비스 계정에 'Cloud Vision API User' 역할 부여")
 
     def extract_text_from_image(self, image_path: str) -> str:
         """
-        이미지에서 텍스트 추출
+        이미지에서 텍스트 추출 (필수)
 
         Args:
             image_path: 이미지 파일 경로
 
         Returns:
             추출된 텍스트
-        """
-        # Google Vision을 사용하지 않는 경우 빈 문자열 반환
-        # (GPT-4o Vision이 이미지를 직접 분석함)
-        if not self.use_google_vision:
-            return ""
 
+        Raises:
+            Exception: OCR 처리 실패 시 예외 발생
+        """
         try:
             with open(image_path, 'rb') as image_file:
                 content = image_file.read()
@@ -46,14 +52,19 @@ class OCRService:
             response = self.client.text_detection(image=image)
 
             if response.error.message:
-                raise Exception(f'OCR API Error: {response.error.message}')
+                raise Exception(f'Google Vision API 오류: {response.error.message}')
 
             texts = response.text_annotations
             if texts:
+                print(f"[INFO] OCR 성공 - {len(texts[0].description)} 글자 추출됨")
                 return texts[0].description
+
+            # 텍스트가 없는 경우에도 빈 문자열 반환 (정상)
+            print("[INFO] OCR 완료 - 추출된 텍스트 없음")
             return ""
 
         except Exception as e:
+            # OCR 필수이므로 예외를 그대로 전파
             raise Exception(f"OCR 처리 중 오류 발생: {str(e)}")
 
     def extract_text_from_bytes(self, image_bytes: bytes) -> str:
@@ -87,7 +98,8 @@ class GeminiService:
 
     def __init__(self):
         genai.configure(api_key=getattr(settings, 'GEMINI_API_KEY', None))
-        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        # Gemini 2.5 Flash - 빠르고 안정적인 멀티모달 모델
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
 
     def process_invoice(
         self,
@@ -548,9 +560,9 @@ class InvoiceProcessor:
         }
 
         try:
-            # Step 2: OCR로 텍스트 추출 (선택적)
+            # Step 2: OCR로 텍스트 추출 (필수)
             ocr_text = self.ocr_service.extract_text_from_image(image_path)
-            result['ocr_text'] = ocr_text if ocr_text else "OCR 미사용 (GPT-4o Vision 직접 분석)"
+            result['ocr_text'] = ocr_text
 
             # Step 3-4: AI로 데이터 분석 및 JSON 변환 (Gemini 또는 ChatGPT)
             ai_result = self.ai_service.process_invoice(

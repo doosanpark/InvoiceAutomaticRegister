@@ -1,15 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python manage.py shell:*)",
-      "Bash(findstr:*)",
-      "Bash(python manage.py:*)",
-      "Bash(dir:*)",
-      "Bash(mkdir:*)",
-      "Bash(touch:*)",
-      "Bash(python:*)",
-      "Bash(pip install:*)",
-      "Read(//c/**)"
+      "Bash(if [ -f \"C:\\Users\\erid3\\workspace\\INVOICE\\credentials\\invoice-ocr-project-474312-4d73b7cc85b0.json\" ])",
+      "Bash(then echo \"File exists\")",
+      "Bash(else echo \"File NOT found\")",
+      "Bash(fi)",
+      "Bash(if [ -f \"C:\\Users\\erid3\\Documents\\workspace\\INVOICE\\credentials\\invoice-ocr-project-474312-4d73b7cc85b0.json\" ])"
     ],
     "deny": [],
     "ask": []

@@ -29,6 +29,7 @@ def process_invoice(request):
     - service_slug: 서비스 slug (예: rk-customs)
     - customs_code: 관세사 코드 (예: 6N003) 또는 'default'
     - declaration_code: 신고서 코드 (예: CUSDEC929)
+    - ai_engine: AI 엔진 선택 (gemini 또는 gpt, 기본값: gemini)
 
     Response:
     - success: 성공 여부
@@ -36,6 +37,7 @@ def process_invoice(request):
     - ocr_text: OCR 추출 텍스트
     - processing_time: 처리 시간(초)
     - log_id: 처리 로그 ID
+    - ai_engine: 사용된 AI 엔진
     """
 
     # Step 1: 요청 데이터 검증
@@ -48,6 +50,7 @@ def process_invoice(request):
     service_slug = request.data.get('service_slug')
     customs_code = request.data.get('customs_code')
     declaration_code = request.data.get('declaration_code')
+    ai_engine = request.data.get('ai_engine', 'gpt').lower()  # 기본값: gpt
 
     if not service_slug or not customs_code or not declaration_code:
         return Response(
@@ -127,8 +130,9 @@ def process_invoice(request):
         # AI 메타데이터 (최상위 프롬프트)
         ai_metadata = declaration.description if declaration.description else None
 
-        # 인보이스 처리
-        processor = InvoiceProcessor()
+        # 인보이스 처리 (AI 엔진 선택)
+        use_gemini = ai_engine == 'gemini'
+        processor = InvoiceProcessor(use_gemini=use_gemini)
         result = processor.process(
             image_path=image_path,
             mapping_info=mapping_info,
@@ -157,6 +161,7 @@ def process_invoice(request):
             'ocr_text': result.get('ocr_text'),
             'processing_time': result.get('processing_time'),
             'log_id': process_log.id,
+            'ai_engine': 'Gemini' if use_gemini else 'ChatGPT',
             'ai_metadata': ai_metadata,
             'mapping_info': mapping_info,
             'error': result.get('error')
