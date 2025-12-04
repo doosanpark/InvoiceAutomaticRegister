@@ -1,0 +1,246 @@
+{
+  "info": {
+    "name": "Invoice System API",
+    "description": "Invoice 자동 인식 시스템 API Collection (ChatGPT/Gemini)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"username\": \"admin\",\n    \"password\": \"P@ssw0rd\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/auth/login/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "auth", "login", ""]
+        },
+        "description": "로그인하여 인증 토큰을 받습니다. 받은 토큰은 다른 API 요청 시 Authorization 헤더에 'Token {받은토큰}' 형식으로 사용합니다."
+      }
+    },
+    {
+      "name": "2. Process Invoice (ChatGPT)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token YOUR_TOKEN_HERE",
+            "type": "text",
+            "description": "로그인 후 받은 토큰을 입력하세요"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "image",
+              "type": "file",
+              "src": [],
+              "description": "Invoice 이미지 파일 (JPG, PNG 등)"
+            },
+            {
+              "key": "service_slug",
+              "value": "rk-customs",
+              "type": "text",
+              "description": "서비스 slug (예: rk-customs)"
+            },
+            {
+              "key": "customs_code",
+              "value": "default",
+              "type": "text",
+              "description": "관세사 코드 (예: 6N003) 또는 'default'"
+            },
+            {
+              "key": "declaration_code",
+              "value": "CUSDEC929",
+              "type": "text",
+              "description": "신고서 코드 (예: CUSDEC929)"
+            },
+            {
+              "key": "ai_engine",
+              "value": "gpt",
+              "type": "text",
+              "description": "AI 엔진: 'gpt' 또는 'gemini' (기본값: gpt)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/process/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "process", ""]
+        },
+        "description": "Invoice 이미지를 ChatGPT로 처리합니다. ai_engine을 'gpt'로 설정하세요."
+      }
+    },
+    {
+      "name": "2-1. Process Invoice (Gemini)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token YOUR_TOKEN_HERE",
+            "type": "text",
+            "description": "로그인 후 받은 토큰을 입력하세요"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "image",
+              "type": "file",
+              "src": [],
+              "description": "Invoice 이미지 파일 (JPG, PNG 등)"
+            },
+            {
+              "key": "service_slug",
+              "value": "rk-customs",
+              "type": "text",
+              "description": "서비스 slug (예: rk-customs)"
+            },
+            {
+              "key": "customs_code",
+              "value": "default",
+              "type": "text",
+              "description": "관세사 코드 (예: 6N003) 또는 'default'"
+            },
+            {
+              "key": "declaration_code",
+              "value": "CUSDEC929",
+              "type": "text",
+              "description": "신고서 코드 (예: CUSDEC929)"
+            },
+            {
+              "key": "ai_engine",
+              "value": "gemini",
+              "type": "text",
+              "description": "AI 엔진: 'gpt' 또는 'gemini'"
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/process/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "process", ""]
+        },
+        "description": "Invoice 이미지를 Gemini로 처리합니다. ai_engine을 'gemini'로 설정하세요."
+      }
+    },
+    {
+      "name": "3. Get Logs",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token YOUR_TOKEN_HERE",
+            "type": "text",
+            "description": "로그인 후 받은 토큰을 입력하세요"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/logs/?limit=10",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "logs", ""],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10",
+              "description": "결과 개수 제한 (기본값: 50)"
+            },
+            {
+              "key": "status",
+              "value": "completed",
+              "disabled": true,
+              "description": "상태 필터: processing, completed, failed"
+            },
+            {
+              "key": "service_user_id",
+              "value": "1",
+              "disabled": true,
+              "description": "서비스 사용자 ID로 필터링"
+            },
+            {
+              "key": "declaration_id",
+              "value": "1",
+              "disabled": true,
+              "description": "신고서 ID로 필터링"
+            }
+          ]
+        },
+        "description": "Invoice 처리 로그 목록을 조회합니다."
+      }
+    },
+    {
+      "name": "4. Get Log Detail",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token YOUR_TOKEN_HERE",
+            "type": "text",
+            "description": "로그인 후 받은 토큰을 입력하세요"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/logs/1/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "logs", "1", ""]
+        },
+        "description": "특정 Invoice 처리 로그의 상세 정보를 조회합니다."
+      }
+    },
+    {
+      "name": "5. Get Declaration Config",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token YOUR_TOKEN_HERE",
+            "type": "text",
+            "description": "로그인 후 받은 토큰을 입력하세요"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/declaration/1/config/?service_user_id=1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "declaration", "1", "config", ""],
+          "query": [
+            {
+              "key": "service_user_id",
+              "value": "1",
+              "description": "서비스 사용자 ID (필수)"
+            }
+          ]
+        },
+        "description": "신고서의 매핑 정보 및 프롬프트 설정을 조회합니다."
+      }
+    }
+  ]
+}

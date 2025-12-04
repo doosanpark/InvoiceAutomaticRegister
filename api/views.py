@@ -4,6 +4,7 @@ REST API Views
 """
 import os
 import time
+import logging
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -16,6 +17,8 @@ from core.models import (
     PromptConfig, InvoiceProcessLog, Service, CustomUser
 )
 from core.services import InvoiceProcessor
+
+logger = logging.getLogger('api')
 
 
 @api_view(['POST'])
@@ -39,6 +42,13 @@ def process_invoice(request):
     - log_id: 처리 로그 ID
     - ai_engine: 사용된 AI 엔진
     """
+
+    logger.info("\n" + "🔵"*40)
+    logger.info("📥 [API 요청 수신] /api/process/")
+    logger.info("🔵"*40)
+    logger.info(f"👤 User: {request.user.username}")
+    logger.info(f"📝 Request Data: {dict(request.data)}")
+    logger.info("🔵"*40 + "\n")
 
     # Step 1: 요청 데이터 검증
     if 'image' not in request.FILES:
@@ -130,6 +140,24 @@ def process_invoice(request):
         # AI 메타데이터 (최상위 프롬프트)
         ai_metadata = declaration.description if declaration.description else None
 
+        # 매핑 정보 출력
+        logger.info("\n" + "📋"*40)
+        logger.info("📋 [매핑 정보]")
+        logger.info("📋"*40)
+        logger.info(f"📂 Service: {service.name} ({service.slug})")
+        logger.info(f"📄 Declaration: {declaration.name} ({declaration.code})")
+        logger.info(f"🤖 AI Engine: {'Gemini' if ai_engine == 'gemini' else 'ChatGPT'}")
+        logger.info(f"📝 AI Metadata: {ai_metadata}")
+        logger.info(f"\n📊 총 {len(mapping_info)}개 필드 매핑:")
+        for idx, mapping in enumerate(mapping_info, 1):
+            logger.info(f"\n  [{idx}] {mapping['unipass_field_name']}")
+            logger.info(f"      └─ DB: {mapping['db_table_name']}.{mapping['db_field_name']}")
+            if mapping.get('basic_prompt'):
+                logger.info(f"      └─ 기본 프롬프트: {mapping['basic_prompt'][:50]}...")
+            if mapping.get('additional_prompt'):
+                logger.info(f"      └─ 추가 프롬프트: {mapping['additional_prompt'][:50]}...")
+        logger.info("📋"*40 + "\n")
+
         # 인보이스 처리 (AI 엔진 선택)
         use_gemini = ai_engine == 'gemini'
         processor = InvoiceProcessor(use_gemini=use_gemini)
@@ -155,7 +183,7 @@ def process_invoice(request):
         process_log.save()
 
         # Step 5: 응답 반환
-        return Response({
+        response_data = {
             'success': result['success'],
             'data': result.get('result_json'),
             'ocr_text': result.get('ocr_text'),
@@ -165,7 +193,25 @@ def process_invoice(request):
             'ai_metadata': ai_metadata,
             'mapping_info': mapping_info,
             'error': result.get('error')
-        }, status=status.HTTP_200_OK if result['success'] else status.HTTP_500_INTERNAL_SERVER_ERROR)
+        }
+
+        # 응답 출력
+        logger.info("\n" + "🟢"*40)
+        logger.info("📤 [API 응답 반환]")
+        logger.info("🟢"*40)
+        logger.info(f"✅ Success: {response_data['success']}")
+        logger.info(f"⏱️  Processing Time: {response_data['processing_time']:.2f}s")
+        logger.info(f"🆔 Log ID: {response_data['log_id']}")
+        logger.info(f"🤖 AI Engine: {response_data['ai_engine']}")
+        if response_data.get('error'):
+            logger.info(f"❌ Error: {response_data['error']}")
+        if response_data.get('data'):
+            logger.info(f"\n📊 Extracted Data:")
+            for key, value in response_data['data'].items():
+                logger.info(f"  - {key}: {value}")
+        logger.info("🟢"*40 + "\n")
+
+        return Response(response_data, status=status.HTTP_200_OK if result['success'] else status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     except Exception as e:
         # 오류 처리

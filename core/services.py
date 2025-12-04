@@ -4,6 +4,7 @@ OCR 및 AI API 통합 서비스 (ChatGPT / Gemini)
 import os
 import json
 import time
+import logging
 from typing import Dict, Any, Optional
 from django.conf import settings
 from google.cloud import vision
@@ -11,6 +12,9 @@ from openai import OpenAI
 import google.generativeai as genai
 import base64
 from PIL import Image
+import httpx
+
+logger = logging.getLogger('core')
 
 
 class OCRService:
@@ -27,7 +31,7 @@ class OCRService:
         try:
             os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = settings.GOOGLE_VISION_CREDENTIALS
             self.client = vision.ImageAnnotatorClient()
-            print("[INFO] Google Vision OCR 초기화 성공")
+            logger.info("[INFO] Google Vision OCR 초기화 성공")
         except Exception as e:
             raise Exception(f"Google Vision API 초기화 실패: {str(e)}\n\n해결 방법:\n1. Google Cloud Console에서 Vision API 활성화\n2. 서비스 계정에 'Cloud Vision API User' 역할 부여")
 
@@ -56,11 +60,11 @@ class OCRService:
 
             texts = response.text_annotations
             if texts:
-                print(f"[INFO] OCR 성공 - {len(texts[0].description)} 글자 추출됨")
+                logger.info(f"[INFO] OCR 성공 - {len(texts[0].description)} 글자 추출됨")
                 return texts[0].description
 
             # 텍스트가 없는 경우에도 빈 문자열 반환 (정상)
-            print("[INFO] OCR 완료 - 추출된 텍스트 없음")
+            logger.info("[INFO] OCR 완료 - 추출된 텍스트 없음")
             return ""
 
         except Exception as e:
@@ -295,7 +299,23 @@ class ChatGPTService:
     """OpenAI ChatGPT API 서비스"""
 
     def __init__(self):
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        # OpenAI 클라이언트 초기화 (proxy 없이)
+        try:
+            # httpx 클라이언트를 직접 생성 (환경 변수의 proxy 설정 무시)
+            http_client = httpx.Client(
+                timeout=60.0,
+                trust_env=False  # 환경 변수의 proxy 설정 무시
+            )
+
+            self.client = OpenAI(
+                api_key=settings.OPENAI_API_KEY,
+                http_client=http_client,
+                max_retries=2
+            )
+            logger.info("[INFO] OpenAI ChatGPT 클라이언트 초기화 성공")
+        except Exception as e:
+            logger.error(f"[ERROR] OpenAI 클라이언트 초기화 실패: {str(e)}")
+            raise
 
     def process_invoice(
         self,
@@ -348,6 +368,24 @@ class ChatGPTService:
             else:
                 user_prompt = "첨부된 인보이스 이미지를 직접 분석하여 시스템 프롬프트에 명시된 매핑 정보와 규칙에 따라 JSON 형태로 데이터를 정리해주세요."
 
+            # ChatGPT API 호출 내용 출력
+            logger.info("\n" + "="*80)
+            logger.info("🤖 [OpenAI API 호출]")
+            logger.info("="*80)
+            logger.info(f"📌 Model: gpt-4o")
+            logger.info(f"📌 Temperature: 0.1")
+            logger.info(f"📌 Max Tokens: 4096")
+            logger.info("\n[System Prompt]")
+            logger.info("-"*80)
+            logger.info(system_prompt)
+            logger.info("\n[User Prompt]")
+            logger.info("-"*80)
+            logger.info(user_prompt)
+            logger.info("\n[Image Info]")
+            logger.info(f"- Image base64 length: {len(image_base64)} characters")
+            logger.info(f"- Image path: {image_path}")
+            logger.info("="*80 + "\n")
+
             # ChatGPT API 호출 (GPT-4 Vision)
             response = self.client.chat.completions.create(
                 model="gpt-4o",
@@ -378,6 +416,13 @@ class ChatGPTService:
 
             # 응답 파싱
             result_text = response.choices[0].message.content
+
+            # OpenAI API 응답 출력
+            logger.info("\n" + "="*80)
+            logger.info("✅ [OpenAI API 응답]")
+            logger.info("="*80)
+            logger.info(result_text)
+            logger.info("="*80 + "\n")
 
             # JSON 추출 (한글 키)
             result_json_korean = self._extract_json(result_text)
@@ -561,8 +606,16 @@ class InvoiceProcessor:
 
         try:
             # Step 2: OCR로 텍스트 추출 (필수)
+            logger.info("\n" + "🔍"*40)
+            logger.info("🔍 [Google Vision OCR 시작]")
+            logger.info("🔍"*40)
             ocr_text = self.ocr_service.extract_text_from_image(image_path)
             result['ocr_text'] = ocr_text
+            logger.info(f"\n✅ OCR 완료 - {len(ocr_text)} 글자 추출")
+            logger.info(f"\n[OCR 추출 텍스트]")
+            logger.info("-"*80)
+            logger.info(ocr_text[:500] + ("..." if len(ocr_text) > 500 else ""))
+            logger.info("🔍"*40 + "\n")
 
             # Step 3-4: AI로 데이터 분석 및 JSON 변환 (Gemini 또는 ChatGPT)
             ai_result = self.ai_service.process_invoice(
