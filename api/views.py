@@ -43,12 +43,12 @@ def process_invoice(request):
     - ai_engine: 사용된 AI 엔진
     """
 
-    logger.info("\n" + "🔵"*40)
-    logger.info("📥 [API 요청 수신] /api/process/")
-    logger.info("🔵"*40)
-    logger.info(f"👤 User: {request.user.username}")
-    logger.info(f"📝 Request Data: {dict(request.data)}")
-    logger.info("🔵"*40 + "\n")
+    logger.info("\n" + "="*80)
+    logger.info("[API REQUEST] /api/process/")
+    logger.info("="*80)
+    logger.info(f"User: {request.user.username}")
+    logger.info(f"Request Data: {dict(request.data)}")
+    logger.info("="*80 + "\n")
 
     # Step 1: 요청 데이터 검증
     if 'image' not in request.FILES:
@@ -141,22 +141,22 @@ def process_invoice(request):
         ai_metadata = declaration.description if declaration.description else None
 
         # 매핑 정보 출력
-        logger.info("\n" + "📋"*40)
-        logger.info("📋 [매핑 정보]")
-        logger.info("📋"*40)
-        logger.info(f"📂 Service: {service.name} ({service.slug})")
-        logger.info(f"📄 Declaration: {declaration.name} ({declaration.code})")
-        logger.info(f"🤖 AI Engine: {'Gemini' if ai_engine == 'gemini' else 'ChatGPT'}")
-        logger.info(f"📝 AI Metadata: {ai_metadata}")
-        logger.info(f"\n📊 총 {len(mapping_info)}개 필드 매핑:")
+        logger.info("\n" + "="*80)
+        logger.info("[MAPPING INFO]")
+        logger.info("="*80)
+        logger.info(f"Service: {service.name} ({service.slug})")
+        logger.info(f"Declaration: {declaration.name} ({declaration.code})")
+        logger.info(f"AI Engine: {'Gemini' if ai_engine == 'gemini' else 'ChatGPT'}")
+        logger.info(f"AI Metadata: {ai_metadata}")
+        logger.info(f"\nTotal {len(mapping_info)} field mappings:")
         for idx, mapping in enumerate(mapping_info, 1):
             logger.info(f"\n  [{idx}] {mapping['unipass_field_name']}")
-            logger.info(f"      └─ DB: {mapping['db_table_name']}.{mapping['db_field_name']}")
+            logger.info(f"      -> DB: {mapping['db_table_name']}.{mapping['db_field_name']}")
             if mapping.get('basic_prompt'):
-                logger.info(f"      └─ 기본 프롬프트: {mapping['basic_prompt'][:50]}...")
+                logger.info(f"      -> Basic Prompt: {mapping['basic_prompt'][:50]}...")
             if mapping.get('additional_prompt'):
-                logger.info(f"      └─ 추가 프롬프트: {mapping['additional_prompt'][:50]}...")
-        logger.info("📋"*40 + "\n")
+                logger.info(f"      -> Additional Prompt: {mapping['additional_prompt'][:50]}...")
+        logger.info("="*80 + "\n")
 
         # 인보이스 처리 (AI 엔진 선택)
         use_gemini = ai_engine == 'gemini'
@@ -192,24 +192,43 @@ def process_invoice(request):
             'ai_engine': 'Gemini' if use_gemini else 'ChatGPT',
             'ai_metadata': ai_metadata,
             'mapping_info': mapping_info,
+            'prompt': result.get('prompt'),
+            'hs_code_recommendation': result.get('hs_code_recommendation'),
+            'hs_prompt': result.get('hs_prompt'),
             'error': result.get('error')
         }
 
         # 응답 출력
-        logger.info("\n" + "🟢"*40)
-        logger.info("📤 [API 응답 반환]")
-        logger.info("🟢"*40)
-        logger.info(f"✅ Success: {response_data['success']}")
-        logger.info(f"⏱️  Processing Time: {response_data['processing_time']:.2f}s")
-        logger.info(f"🆔 Log ID: {response_data['log_id']}")
-        logger.info(f"🤖 AI Engine: {response_data['ai_engine']}")
+        logger.info("\n" + "="*80)
+        logger.info("[API RESPONSE]")
+        logger.info("="*80)
+        logger.info(f"Success: {response_data['success']}")
+        logger.info(f"Processing Time: {response_data['processing_time']:.2f}s")
+        logger.info(f"Log ID: {response_data['log_id']}")
+        logger.info(f"AI Engine: {response_data['ai_engine']}")
         if response_data.get('error'):
-            logger.info(f"❌ Error: {response_data['error']}")
+            logger.info(f"Error: {response_data['error']}")
         if response_data.get('data'):
-            logger.info(f"\n📊 Extracted Data:")
-            for key, value in response_data['data'].items():
-                logger.info(f"  - {key}: {value}")
-        logger.info("🟢"*40 + "\n")
+            logger.info(f"\nExtracted Data:")
+            logger.info(f"[DEBUG api/views.py:213] response_data['data'] type: {type(response_data['data'])}")
+            logger.info(f"[DEBUG api/views.py:214] response_data['data'] value: {response_data['data']}")
+            try:
+                if isinstance(response_data['data'], dict):
+                    logger.info(f"[DEBUG api/views.py:217] Iterating dict with .items()")
+                    for key, value in response_data['data'].items():
+                        logger.info(f"  - {key}: {value}")
+                elif isinstance(response_data['data'], list):
+                    logger.info(f"[DEBUG api/views.py:221] Iterating list")
+                    for item in response_data['data']:
+                        logger.info(f"  - {item}")
+                else:
+                    logger.info(f"[DEBUG api/views.py:225] Other type, printing directly")
+                    logger.info(f"  {response_data['data']}")
+            except Exception as e:
+                logger.error(f"[ERROR api/views.py:228] Error while logging data: {str(e)}")
+                logger.error(f"[ERROR api/views.py:229] Data type: {type(response_data['data'])}")
+                logger.error(f"[ERROR api/views.py:230] Data value: {response_data['data']}")
+        logger.info("="*80 + "\n")
 
         return Response(response_data, status=status.HTTP_200_OK if result['success'] else status.HTTP_500_INTERNAL_SERVER_ERROR)
 
