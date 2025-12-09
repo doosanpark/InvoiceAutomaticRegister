@@ -6,7 +6,7 @@ from django.http import JsonResponse, FileResponse, Http404
 from django.views.decorators.http import require_http_methods
 from .models import (
     CustomUser, Service, ServiceUser, Declaration,
-    MappingInfo, PromptConfig
+    MappingInfo, PromptConfig, TableProcessConfig
 )
 from .forms import LoginForm, PasswordChangeForm, ServiceForm, CustomUserForm, DeclarationForm
 import os
@@ -316,12 +316,22 @@ def declaration_detail_view(request, service_slug, customs_code, declaration_cod
         (service_user.user == request.user and not service_user.is_default)
     )
 
+    # 테이블 처리 설정 (기본 설정이고 관리자인 경우만)
+    table_configs = []
+    if service_user.is_default and request.user.user_type == 'admin':
+        table_configs = TableProcessConfig.objects.filter(
+            declaration=declaration,
+            service_user=service_user,
+            is_active=True
+        ).order_by('process_order')
+
     return render(request, 'core/declaration_detail.html', {
         'declaration': declaration,
         'service_user': service_user,
         'mapping_data': mapping_data,
         'can_edit_basic': can_edit_basic,
-        'can_edit_additional': can_edit_additional
+        'can_edit_additional': can_edit_additional,
+        'table_configs': table_configs
     })
 
 
@@ -645,3 +655,122 @@ def download_specification_view(request, declaration_id):
     response = FileResponse(open(file_path, 'rb'))
     response['Content-Disposition'] = f'attachment; filename="{file_name}"'
     return response
+
+
+@login_required
+@require_http_methods(["POST"])
+def add_table_config_view(request, declaration_id):
+    """테이블 처리 설정 추가 (AJAX)"""
+    declaration = get_object_or_404(Declaration, pk=declaration_id)
+    
+    # 권한 체크 (관리자만)
+    if request.user.user_type != 'admin':
+        return JsonResponse({'success': False, 'error': '관리자만 추가할 수 있습니다.'})
+    
+    work_group = request.POST.get('work_group', '').strip()
+    db_table_name = request.POST.get('db_table_name', '').strip()
+    process_order = request.POST.get('process_order', '').strip()
+    service_user_id = request.POST.get('service_user_id')
+    
+    # 유효성 검사
+    if not all([work_group, db_table_name, process_order]):
+        return JsonResponse({'success': False, 'error': '모든 필수 필드를 입력해주세요.'})
+    
+    try:
+        process_order = int(process_order)
+    except ValueError:
+        return JsonResponse({'success': False, 'error': '처리 순서는 숫자여야 합니다.'})
+    
+    # ServiceUser 조회
+    service_user = None
+    if service_user_id:
+        service_user = get_object_or_404(ServiceUser, pk=service_user_id)
+    
+    # 중복 체크
+    existing = TableProcessConfig.objects.filter(
+        declaration=declaration,
+        service_user=service_user,
+        db_table_name=db_table_name
+    ).exists()
+    
+    if existing:
+        return JsonResponse({'success': False, 'error': '이미 동일한 테이블명의 설정이 존재합니다.'})
+    
+    # 테이블 처리 설정 생성
+    config = TableProcessConfig.objects.create(
+        declaration=declaration,
+        service_user=service_user,
+        work_group=work_group,
+        db_table_name=db_table_name,
+        process_order=process_order,
+        is_active=True
+    )
+    
+    return JsonResponse({
+        'success': True,
+        'message': '테이블 처리 설정이 추가되었습니다.',
+        'config_id': config.id
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_table_config_view(request, config_id):
+    """테이블 처리 설정 수정 (AJAX)"""
+    config = get_object_or_404(TableProcessConfig, pk=config_id)
+    
+    # 권한 체크 (관리자만)
+    if request.user.user_type != 'admin':
+        return JsonResponse({'success': False, 'error': '관리자만 수정할 수 있습니다.'})
+    
+    work_group = request.POST.get('work_group', '').strip()
+    db_table_name = request.POST.get('db_table_name', '').strip()
+    process_order = request.POST.get('process_order', '').strip()
+    
+    # 유효성 검사
+    if not all([work_group, db_table_name, process_order]):
+        return JsonResponse({'success': False, 'error': '모든 필수 필드를 입력해주세요.'})
+    
+    try:
+        process_order = int(process_order)
+    except ValueError:
+        return JsonResponse({'success': False, 'error': '처리 순서는 숫자여야 합니다.'})
+    
+    # 중복 체크 (자기 자신 제외)
+    existing = TableProcessConfig.objects.filter(
+        declaration=config.declaration,
+        service_user=config.service_user,
+        db_table_name=db_table_name
+    ).exclude(pk=config_id).exists()
+    
+    if existing:
+        return JsonResponse({'success': False, 'error': '이미 동일한 테이블명의 설정이 존재합니다.'})
+    
+    # 업데이트
+    config.work_group = work_group
+    config.db_table_name = db_table_name
+    config.process_order = process_order
+    config.save()
+    
+    return JsonResponse({
+        'success': True,
+        'message': '테이블 처리 설정이 수정되었습니다.'
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def delete_table_config_view(request, config_id):
+    """테이블 처리 설정 삭제 (AJAX)"""
+    config = get_object_or_404(TableProcessConfig, pk=config_id)
+    
+    # 권한 체크 (관리자만)
+    if request.user.user_type != 'admin':
+        return JsonResponse({'success': False, 'error': '관리자만 삭제할 수 있습니다.'})
+    
+    config.delete()
+    
+    return JsonResponse({
+        'success': True,
+        'message': '테이블 처리 설정이 삭제되었습니다.'
+    })

@@ -37,4 +37,9 @@ urlpatterns = [
     path('api/declaration/<int:declaration_id>/metadata/', views.update_metadata_view, name='update_metadata'),
     path('api/declaration/<int:declaration_id>/specification/upload/', views.upload_specification_view, name='upload_specification'),
     path('api/declaration/<int:declaration_id>/specification/download/', views.download_specification_view, name='download_specification'),
+    
+    # 테이블 처리 설정 API
+    path('api/table-config/<int:declaration_id>/add/', views.add_table_config_view, name='add_table_config'),
+    path('api/table-config/<int:config_id>/update/', views.update_table_config_view, name='update_table_config'),
+    path('api/table-config/<int:config_id>/delete/', views.delete_table_config_view, name='delete_table_config'),
 ]

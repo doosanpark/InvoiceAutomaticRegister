@@ -119,6 +119,39 @@ class Declaration(models.Model):
         return f"{self.service.name} - {self.name}"
 
 
+class TableProcessConfig(models.Model):
+    """
+    테이블별 처리 설정 모델
+    테이블별로 처리 순서를 지정하여 순차적으로 매핑 처리
+    """
+    declaration = models.ForeignKey(Declaration, on_delete=models.CASCADE,
+                                   related_name='table_configs', verbose_name='신고서')
+    service_user = models.ForeignKey(ServiceUser, on_delete=models.CASCADE,
+                                    blank=True, null=True,
+                                    related_name='table_configs', verbose_name='서비스 사용자')
+
+    # 테이블 정보
+    work_group = models.CharField(max_length=100, verbose_name='업무그룹')  # 테이블명의 한국식 표기
+    db_table_name = models.CharField(max_length=100, verbose_name='테이블명')  # DB 테이블명 (admin만 visible)
+    process_order = models.IntegerField(verbose_name='처리 순서')  # 처리 순서 (admin만 visible)
+
+    is_active = models.BooleanField(default=True, verbose_name='활성화 여부')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성일시')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='수정일시')
+
+    class Meta:
+        db_table = 'table_process_configs'
+        verbose_name = '테이블 처리 설정'
+        verbose_name_plural = '테이블 처리 설정'
+        ordering = ['declaration', 'process_order']
+        unique_together = ['declaration', 'service_user', 'db_table_name']
+
+    def __str__(self):
+        if self.service_user:
+            return f"{self.declaration.name} - {self.work_group} (순서: {self.process_order}) - {self.service_user}"
+        return f"{self.declaration.name} - {self.work_group} (순서: {self.process_order})"
+
+
 class MappingInfo(models.Model):
     """
     매핑정보 모델
@@ -137,6 +170,11 @@ class MappingInfo(models.Model):
     service_user = models.ForeignKey(ServiceUser, on_delete=models.CASCADE,
                                     blank=True, null=True,
                                     related_name='mappings', verbose_name='서비스 사용자')
+
+    # 테이블 처리 설정과 연결
+    table_config = models.ForeignKey(TableProcessConfig, on_delete=models.CASCADE,
+                                    blank=True, null=True,
+                                    related_name='mappings', verbose_name='테이블 처리 설정')
 
     # 매핑 정보
     unipass_field_name = models.CharField(max_length=200, verbose_name='유니패스 항목명')

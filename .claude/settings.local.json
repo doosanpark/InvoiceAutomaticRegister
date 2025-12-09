@@ -8,7 +8,8 @@
       "Bash(if [ -f \"C:\\Users\\erid3\\Documents\\workspace\\INVOICE\\credentials\\invoice-ocr-project-474312-4d73b7cc85b0.json\" ])",
       "Bash(del test_openai_key.py)",
       "Bash(pip show:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(python manage.py:*)"
     ],
     "deny": [],
     "ask": []

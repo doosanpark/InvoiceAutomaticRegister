@@ -13,7 +13,7 @@ from django.core.files.storage import default_storage
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from core.models import (
-    ServiceUser, Declaration, MappingInfo,
+    ServiceUser, Declaration, MappingInfo, TableProcessConfig,
     PromptConfig, InvoiceProcessLog, Service, CustomUser
 )
 from core.services import InvoiceProcessor
@@ -103,6 +103,19 @@ def process_invoice(request):
         # 이미지 파일 경로
         image_path = process_log.image_file.path
 
+        # 테이블 처리 설정 정보 가져오기 (테이블명으로 매칭)
+        table_configs = {}
+        configs = TableProcessConfig.objects.filter(
+            declaration=declaration,
+            service_user=service_user,
+            is_active=True
+        )
+        for config in configs:
+            table_configs[config.db_table_name] = {
+                'process_order': config.process_order,
+                'work_group': config.work_group
+            }
+
         # 매핑 정보 가져오기
         mappings = MappingInfo.objects.filter(
             declaration=declaration,
@@ -128,19 +141,32 @@ def process_invoice(request):
                 is_active=True
             ).first()
 
-            # 매핑 정보에 프롬프트 포함
+            # 테이블 처리 설정 정보 (테이블명으로 조회)
+            process_order = None
+            work_group = None
+            table_config = table_configs.get(mapping.db_table_name)
+            if table_config:
+                process_order = table_config['process_order']
+                work_group = table_config['work_group']
+
+            # 매핑 정보에 프롬프트 및 처리 순서 포함
             mapping_info.append({
                 'unipass_field_name': mapping.unipass_field_name,
                 'db_table_name': mapping.db_table_name,
                 'db_field_name': mapping.db_field_name,
                 'basic_prompt': basic_prompt.prompt_text if basic_prompt else None,
-                'additional_prompt': additional_prompt.prompt_text if additional_prompt else None
+                'additional_prompt': additional_prompt.prompt_text if additional_prompt else None,
+                'process_order': process_order,
+                'work_group': work_group
             })
 
         # AI 메타데이터 (최상위 프롬프트)
         ai_metadata = declaration.description if declaration.description else None
 
-        # 매핑 정보 출력
+        # 순차 처리 여부 확인
+        has_process_order = any(mapping.get('process_order') is not None for mapping in mapping_info)
+
+        # 매핑 정보 출력 (순차 처리가 아닐 때만 상세 출력)
         logger.info("\n" + "="*80)
         logger.info("[MAPPING INFO]")
         logger.info("="*80)
@@ -148,14 +174,24 @@ def process_invoice(request):
         logger.info(f"Declaration: {declaration.name} ({declaration.code})")
         logger.info(f"AI Engine: {'Gemini' if ai_engine == 'gemini' else 'ChatGPT'}")
         logger.info(f"AI Metadata: {ai_metadata}")
-        logger.info(f"\nTotal {len(mapping_info)} field mappings:")
-        for idx, mapping in enumerate(mapping_info, 1):
-            logger.info(f"\n  [{idx}] {mapping['unipass_field_name']}")
-            logger.info(f"      -> DB: {mapping['db_table_name']}.{mapping['db_field_name']}")
-            if mapping.get('basic_prompt'):
-                logger.info(f"      -> Basic Prompt: {mapping['basic_prompt'][:50]}...")
-            if mapping.get('additional_prompt'):
-                logger.info(f"      -> Additional Prompt: {mapping['additional_prompt'][:50]}...")
+        logger.info(f"Total {len(mapping_info)} field mappings")
+
+        if has_process_order:
+            # 순차 처리 시에는 간략하게
+            ordered_count = sum(1 for m in mapping_info if m.get('process_order') is not None)
+            logger.info(f"  - Ordered mappings: {ordered_count}")
+            logger.info(f"  - Unordered mappings: {len(mapping_info) - ordered_count}")
+            logger.info("  (Detailed mapping info will be shown in each step)")
+        else:
+            # 일괄 처리 시에는 전체 출력
+            for idx, mapping in enumerate(mapping_info, 1):
+                logger.info(f"\n  [{idx}] {mapping['unipass_field_name']}")
+                logger.info(f"      -> DB: {mapping['db_table_name']}.{mapping['db_field_name']}")
+                if mapping.get('basic_prompt'):
+                    logger.info(f"      -> Basic Prompt: {mapping['basic_prompt'][:50]}...")
+                if mapping.get('additional_prompt'):
+                    logger.info(f"      -> Additional Prompt: {mapping['additional_prompt'][:50]}...")
+
         logger.info("="*80 + "\n")
 
         # 인보이스 처리 (AI 엔진 선택)
@@ -193,6 +229,8 @@ def process_invoice(request):
             'ai_metadata': ai_metadata,
             'mapping_info': mapping_info,
             'prompt': result.get('prompt'),
+            'steps': result.get('steps'),  # 단계별 프롬프트 및 응답
+            'total_steps': result.get('total_steps'),  # 총 단계 수
             'hs_code_recommendation': result.get('hs_code_recommendation'),
             'hs_prompt': result.get('hs_prompt'),
             'error': result.get('error')
@@ -206,6 +244,25 @@ def process_invoice(request):
         logger.info(f"Processing Time: {response_data['processing_time']:.2f}s")
         logger.info(f"Log ID: {response_data['log_id']}")
         logger.info(f"AI Engine: {response_data['ai_engine']}")
+        if response_data.get('total_steps'):
+            logger.info(f"Total Steps: {response_data['total_steps']}")
+
+        # 단계별 정보 출력
+        if response_data.get('steps'):
+            logger.info(f"\nStep-by-Step Processing Details:")
+            for step in response_data['steps']:
+                logger.info(f"\n  [Step {step['step']}/{response_data.get('total_steps', '?')}] {step['work_group']} (Order: {step['order']})")
+                logger.info(f"  - Mapping Count: {step['mapping_count']}")
+
+                # 이 단계의 매핑 목록 출력
+                if step.get('mappings'):
+                    logger.info(f"  - Mappings in this step:")
+                    for idx, m in enumerate(step['mappings'], 1):
+                        logger.info(f"      {idx}. {m['unipass_field_name']} -> {m['db_table_name']}.{m['db_field_name']}")
+
+                logger.info(f"  - Has Prompt: {'Yes' if step.get('prompt') else 'No'}")
+                logger.info(f"  - Has Response: {'Yes' if step.get('response') else 'No'}")
+
         if response_data.get('error'):
             logger.info(f"Error: {response_data['error']}")
         if response_data.get('data'):
@@ -376,6 +433,19 @@ def get_declaration_config(request, declaration_id):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+    # 테이블 처리 설정 정보 가져오기 (테이블명으로 매칭)
+    table_configs = {}
+    configs = TableProcessConfig.objects.filter(
+        declaration=declaration,
+        service_user=service_user,
+        is_active=True
+    )
+    for config in configs:
+        table_configs[config.db_table_name] = {
+            'process_order': config.process_order,
+            'work_group': config.work_group
+        }
+
     # 매핑 정보 가져오기
     mappings = MappingInfo.objects.filter(
         declaration=declaration,
@@ -400,6 +470,14 @@ def get_declaration_config(request, declaration_id):
             is_active=True
         ).first()
 
+        # 테이블 처리 설정 정보 (테이블명으로 조회)
+        process_order = None
+        work_group = None
+        table_config = table_configs.get(mapping.db_table_name)
+        if table_config:
+            process_order = table_config['process_order']
+            work_group = table_config['work_group']
+
         mapping_data.append({
             'id': mapping.id,
             'unipass_field_name': mapping.unipass_field_name,
@@ -408,6 +486,8 @@ def get_declaration_config(request, declaration_id):
             'priority': mapping.priority,
             'basic_prompt': basic_prompt.prompt_text if basic_prompt else None,
             'additional_prompt': additional_prompt.prompt_text if additional_prompt else None,
+            'process_order': process_order,
+            'work_group': work_group,
         })
 
     return Response({
